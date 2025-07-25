@@ -126,12 +126,6 @@
     <PackageVersion Include="Microsoft.CodeCoverage" Version="17.8.0" />
   </ItemGroup>
 
-  <!-- Database Tools -->
-  <ItemGroup Label="Database Tools">
-    <PackageVersion Include="Respawn" Version="6.1.0" />
-    <PackageVersion Include="Bogus" Version="35.0.1" />
-  </ItemGroup>
-
   <!-- Security -->
   <ItemGroup Label="Security">
     <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="7.0.3" />

@@ -75,12 +75,9 @@ The solution follows **Clean Architecture** principles with four main layers:
 - **Data Transfer Objects** (DTOs)
 
 ### 🏭 **Infrastructure Layer**
-- **Entity Framework Core** integration
-- **Repository** implementations
-- **Unit of Work** pattern
-- **Caching** (In-Memory & Redis)
-- **Database Migrations** and **Seeding**
-- **Audit** and **Soft Delete** interceptors
+- **Entity Framework Core** with **Repository Pattern** and **Unit of Work**
+- **Database Migrations** and **Seeding** infrastructure
+- **OpenTelemetry** integration for **observability**
 
 ### 🌐 **API Layer**
 - **Minimal APIs** with endpoint pattern
