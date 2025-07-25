@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <!-- Custom Build Targets -->
+
+  <!-- Clean artifacts directory before build -->
+  <Target Name="CleanArtifacts" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <ArtifactsToDelete Include="$(MSBuildThisFileDirectory)artifacts\**\*" />
+    </ItemGroup>
+    <Delete Files="@(ArtifactsToDelete)" ContinueOnError="true" />
+    <RemoveDir Directories="$(MSBuildThisFileDirectory)artifacts" ContinueOnError="true" />
+  </Target>
+
+  <!-- Create artifacts directory structure -->
+  <Target Name="CreateArtifactsDirectories" BeforeTargets="BeforeBuild">
+    <MakeDir Directories="$(OutputPath)" Condition="!Exists('$(OutputPath)')" />
+    <MakeDir Directories="$(BaseIntermediateOutputPath)" Condition="!Exists('$(BaseIntermediateOutputPath)')" />
+    <MakeDir Directories="$(PackageOutputPath)" Condition="!Exists('$(PackageOutputPath)')" />
+  </Target>
+
+  <!-- Copy documentation files to output -->
+  <Target Name="CopyDocumentationFiles" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <DocumentationFiles Include="$(MSBuildThisFileDirectory)README.md" />
+      <DocumentationFiles Include="$(MSBuildThisFileDirectory)CHANGELOG.md" />
+      <DocumentationFiles Include="$(MSBuildThisFileDirectory)LICENSE" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DocumentationFiles)" DestinationFolder="$(OutputPath)" Condition="Exists('%(FullPath)')" />
+  </Target>
+
+  <!-- Generate version information file -->
+  <Target Name="GenerateVersionInfo" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <VersionInfoFile>$(BaseIntermediateOutputPath)VersionInfo.cs</VersionInfoFile>
+      <VersionInfoContent>
+// &lt;auto-generated /&gt;
+using System.Reflection%3B
+
+[assembly: AssemblyMetadata("BuildDate", "$(BuildDate)")]
+[assembly: AssemblyMetadata("BuildMachine", "$(COMPUTERNAME)")]
+[assembly: AssemblyMetadata("BuildUser", "$(USERNAME)")]
+[assembly: AssemblyMetadata("GitCommit", "$(GitCommitId)")]
+[assembly: AssemblyMetadata("GitBranch", "$(GitBranch)")]
+      </VersionInfoContent>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(BaseIntermediateOutputPath)" />
+    <WriteLinesToFile File="$(VersionInfoFile)" Lines="$(VersionInfoContent)" Overwrite="true" />
+    
+    <ItemGroup>
+      <Compile Include="$(VersionInfoFile)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Set build date -->
+  <PropertyGroup>
+    <BuildDate>$([System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ'))</BuildDate>
+  </PropertyGroup>
+
+  <!-- Validate project references -->
+  <Target Name="ValidateProjectReferences" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <InvalidReferences Include="@(ProjectReference)" 
+                         Condition="!Exists('%(ProjectReference.Identity)')" />
+    </ItemGroup>
+    
+    <Error Text="Invalid project reference: %(InvalidReferences.Identity)" 
+           Condition="'@(InvalidReferences)' != ''" />
+  </Target>
+
+  <!-- Code quality targets -->
+  <Target Name="RunCodeAnalysis" Condition="'$(RunAnalyzersDuringBuild)' == 'true'">
+    <Message Text="Running code analysis for $(MSBuildProjectName)" Importance="high" />
+  </Target>
+
+  <!-- Test coverage target -->
+  <Target Name="GenerateTestCoverage" AfterTargets="Test" Condition="'$(IsTestProject)' == 'true'">
+    <Message Text="Generating test coverage report for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <CoverageReportPath>$(MSBuildThisFileDirectory)artifacts\coverage\$(MSBuildProjectName)\</CoverageReportPath>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(CoverageReportPath)" />
+  </Target>
+
+  <!-- Package validation -->
+  <Target Name="ValidatePackage" AfterTargets="Pack" Condition="'$(IsPackable)' == 'true'">
+    <Message Text="Validating package for $(MSBuildProjectName)" Importance="high" />
+    
+    <ItemGroup>
+      <GeneratedPackages Include="$(PackageOutputPath)$(PackageId).*.nupkg" />
+    </ItemGroup>
+    
+    <Message Text="Generated package: %(GeneratedPackages.Identity)" Importance="high" />
+  </Target>
+
+  <!-- Documentation generation -->
+  <Target Name="GenerateDocumentation" AfterTargets="Build" Condition="'$(GenerateDocumentationFile)' == 'true' AND '$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <DocumentationOutputPath>$(MSBuildThisFileDirectory)artifacts\docs\$(MSBuildProjectName)\</DocumentationOutputPath>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(DocumentationOutputPath)" />
+    
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).xml" 
+          DestinationFolder="$(DocumentationOutputPath)" 
+          Condition="Exists('$(OutputPath)$(AssemblyName).xml')" />
+  </Target>
+
+  <!-- Security scan target -->
+  <Target Name="SecurityScan" Condition="'$(RunSecurityScan)' == 'true'">
+    <Message Text="Running security scan for $(MSBuildProjectName)" Importance="high" />
+    <!-- Add security scanning tools integration here -->
+  </Target>
+
+  <!-- Performance profiling target -->
+  <Target Name="PerformanceProfiling" Condition="'$(RunPerformanceProfiling)' == 'true'">
+    <Message Text="Running performance profiling for $(MSBuildProjectName)" Importance="high" />
+    <!-- Add performance profiling tools integration here -->
+  </Target>
+
+  <!-- Database migration target -->
+  <Target Name="UpdateDatabase" Condition="$(MSBuildProjectName.Contains('Infrastructure'))">
+    <Message Text="Checking for database migrations in $(MSBuildProjectName)" Importance="high" />
+    <!-- Add EF Core migration commands here -->
+  </Target>
+
+  <!-- API documentation generation -->
+  <Target Name="GenerateApiDocumentation" AfterTargets="Build" Condition="$(MSBuildProjectName.Contains('API')) AND '$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <ApiDocOutputPath>$(MSBuildThisFileDirectory)artifacts\api-docs\</ApiDocOutputPath>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(ApiDocOutputPath)" />
+    <Message Text="Generating API documentation for $(MSBuildProjectName)" Importance="high" />
+  </Target>
+
+  <!-- Container image build target -->
+  <Target Name="BuildContainerImage" Condition="'$(BuildContainerImage)' == 'true'">
+    <Message Text="Building container image for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <ContainerImageName>$(MSBuildProjectName.ToLowerInvariant())</ContainerImageName>
+      <ContainerImageTag>$(Version)</ContainerImageTag>
+    </PropertyGroup>
+    
+    <Exec Command="docker build -t $(ContainerImageName):$(ContainerImageTag) ." 
+          WorkingDirectory="$(MSBuildProjectDirectory)" 
+          ContinueOnError="false" />
+  </Target>
+
+  <!-- Helm chart packaging -->
+  <Target Name="PackageHelmChart" Condition="'$(PackageHelmChart)' == 'true'">
+    <Message Text="Packaging Helm chart for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <HelmChartPath>$(MSBuildThisFileDirectory)charts\$(MSBuildProjectName.ToLowerInvariant())\</HelmChartPath>
+      <HelmPackageOutput>$(MSBuildThisFileDirectory)artifacts\helm\</HelmPackageOutput>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(HelmPackageOutput)" />
+    
+    <Exec Command="helm package $(HelmChartPath) --destination $(HelmPackageOutput)" 
+          Condition="Exists('$(HelmChartPath)Chart.yaml')" 
+          ContinueOnError="false" />
+  </Target>
+
+  <!-- Integration test target -->
+  <Target Name="RunIntegrationTests" Condition="$(MSBuildProjectName.Contains('IntegrationTests'))">
+    <Message Text="Running integration tests for $(MSBuildProjectName)" Importance="high" />
+    
+    <Exec Command="dotnet test --configuration $(Configuration) --logger trx --results-directory $(MSBuildThisFileDirectory)artifacts\test-results\" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <!-- Benchmark target -->
+  <Target Name="RunBenchmarks" Condition="$(MSBuildProjectName.Contains('Benchmarks'))">
+    <Message Text="Running benchmarks for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <BenchmarkOutputPath>$(MSBuildThisFileDirectory)artifacts\benchmarks\</BenchmarkOutputPath>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(BenchmarkOutputPath)" />
+    
+    <Exec Command="dotnet run --configuration Release -- --artifacts $(BenchmarkOutputPath)" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <!-- Clean up temporary files -->
+  <Target Name="CleanupTempFiles" AfterTargets="Build">
+    <ItemGroup>
+      <TempFiles Include="$(MSBuildProjectDirectory)\**\*.tmp" />
+      <TempFiles Include="$(MSBuildProjectDirectory)\**\*.cache" />
+    </ItemGroup>
+    
+    <Delete Files="@(TempFiles)" ContinueOnError="true" />
+  </Target>
+
+  <!-- Git information -->
+  <Target Name="GetGitInfo" BeforeTargets="GenerateVersionInfo">
+    <Exec Command="git rev-parse HEAD" ConsoleToMSBuild="true" ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitId" />
+    </Exec>
+    
+    <Exec Command="git rev-parse --abbrev-ref HEAD" ConsoleToMSBuild="true" ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitBranch" />
+    </Exec>
+    
+    <PropertyGroup>
+      <GitCommitId Condition="'$(GitCommitId)' == ''">unknown</GitCommitId>
+      <GitBranch Condition="'$(GitBranch)' == ''">unknown</GitBranch>
+    </PropertyGroup>
+  </Target>
+
+</Project> 
