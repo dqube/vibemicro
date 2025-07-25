@@ -5,40 +5,39 @@ Generate a comprehensive Application Layer library following Clean Architecture,
 
 ## Project Configuration
 
-### Basic Setup
+### Simplified Project File
 ```xml
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk"/>
+```
 
-  <!-- Application Layer Dependencies -->
-  <ItemGroup>
-    <!-- Domain Layer Reference -->
-    <ProjectReference Include="..\BuildingBlocks.Domain\BuildingBlocks.Domain.csproj" />
-    
-    <!-- Microsoft Extensions -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-    
-    <!-- Validation -->
-    <PackageReference Include="FluentValidation" />
-    
-    <!-- Serialization -->
-    <PackageReference Include="System.Text.Json" />
-    
-    <!-- Performance -->
-    <PackageReference Include="System.Threading.Channels" />
-    <PackageReference Include="System.Reactive" />
-  </ItemGroup>
-</Project>
+**That's it!** All configuration is handled automatically by the centralized build system:
+
+- **Target Framework**: .NET 8.0 (from `Directory.Build.props`)
+- **Language Features**: Implicit usings, nullable reference types, warnings as errors
+- **Documentation**: XML documentation generation enabled
+- **Project References**: `BuildingBlocks.Domain` automatically referenced
+- **Package Management**: All packages automatically included via `Directory.Build.targets`
+- **Versioning**: Automatic versioning with Git integration
+- **Analysis**: Code quality rules from `BuildingBlocks.ruleset`
+
+### Automatic Package Inclusion
+The following packages are automatically included via the centralized build system:
+- **Core packages**: Microsoft Extensions (DI, Logging, Hosting, Caching abstractions)
+- **Application-specific**: `Scrutor` for assembly scanning
+- **Optional features** (can be enabled via feature flags):
+  - `FluentValidation` and extensions (if `IncludeValidation` is true)
+  - `MediatR` and extensions (if `IncludeMediatR` is true)
+
+### Feature Control
+Application projects can enable additional features:
+```xml
+<!-- Optional in individual .csproj if needed -->
+<PropertyGroup>
+  <IncludeValidation>true</IncludeValidation>        <!-- Adds FluentValidation -->
+  <IncludeMediatR>true</IncludeMediatR>              <!-- Adds MediatR (if using external mediator) -->
+  <IncludeMonitoring>true</IncludeMonitoring>        <!-- Adds OpenTelemetry, Health Checks -->
+  <IncludeMessaging>true</IncludeMessaging>          <!-- Adds messaging abstractions -->
+</PropertyGroup>
 ```
 
 ## Architecture Principles
@@ -135,7 +134,7 @@ BuildingBlocks.Application/
 │   ├── IMessagePublisher.cs    # Message publisher interface
 │   └── MessageMetadata.cs      # Message metadata
 ├── Security/                    # Security abstractions
-│   ├── ICurrentUserService.cs  # Current user interface
+│   ├── ICurrentUser.cs         # Current user interface
 │   ├── IPermissionService.cs   # Permission service interface
 │   ├── UserContext.cs          # User context
 │   └── SecurityContext.cs      # Security context
@@ -166,7 +165,8 @@ BuildingBlocks.Application/
 │   └── ISagaManager.cs         # Saga manager interface
 ├── Idempotency/                 # Idempotent operations
 │   ├── IIdempotencyService.cs  # Idempotency service interface
-│   └── IdempotencyOptions.cs   # Idempotency configuration
+│   ├── IdempotencyOptions.cs   # Idempotency configuration
+│   └── IdempotencyRecord.cs    # Idempotency record entity
 └── Extensions/                  # Extension methods
     ├── ServiceCollectionExtensions.cs # DI registration
     ├── ApplicationExtensions.cs # Application extensions
@@ -269,12 +269,12 @@ public abstract class ApplicationServiceBase : IApplicationService
 {
     protected IMediator Mediator { get; }
     protected ILogger Logger { get; }
-    protected ICurrentUserService CurrentUser { get; }
+    protected ICurrentUser CurrentUser { get; }
 
     protected ApplicationServiceBase(
         IMediator mediator,
         ILogger logger,
-        ICurrentUserService currentUser)
+        ICurrentUser currentUser)
     {
         Mediator = mediator;
         Logger = logger;
@@ -316,6 +316,25 @@ public class ValidationResult
     // Implementation details...
 }
 ```
+
+## Centralized Build System Benefits
+
+### 1. Automatic Dependency Management
+- **Domain reference**: `BuildingBlocks.Domain` automatically referenced
+- **Package consistency**: All Application projects use same versions
+- **Feature-based packages**: Only include what you need
+- **Security updates**: Centrally managed and applied
+
+### 2. Clean Architecture Enforcement
+- **Layer dependencies**: Only references Domain layer automatically
+- **Architectural rules**: Custom analyzers enforce patterns
+- **Interface abstractions**: Clear contracts for Infrastructure
+
+### 3. CQRS & Mediator Patterns
+- **Custom mediator**: No external dependencies on MediatR
+- **Pipeline behaviors**: Cross-cutting concerns implementation
+- **Handler registration**: Automatic via assembly scanning
+- **Type safety**: Compile-time validation of requests/responses
 
 ## Key Design Patterns
 
@@ -447,4 +466,15 @@ public static IServiceCollection AddApplication(this IServiceCollection services
 - **Logging** at appropriate levels
 - **User-friendly** error messages
 
-This Application Layer provides a robust foundation for implementing business logic while maintaining clean separation of concerns and supporting modern architectural patterns. 
+## Integration with Build System
+
+The Application library integrates seamlessly with the centralized build system:
+
+- **Package Metadata**: Automatically configured with proper PackageId and description
+- **Dependencies**: Domain layer automatically referenced
+- **Feature Flags**: Optional packages like validation and MediatR can be enabled
+- **Code Quality**: Application-specific architectural rules enforced
+- **Documentation**: XML docs generated and published automatically
+- **Assembly Scanning**: Handlers automatically discovered and registered
+
+This Application Layer provides a robust foundation for implementing business logic while maintaining clean separation of concerns and supporting modern architectural patterns with zero configuration overhead. 

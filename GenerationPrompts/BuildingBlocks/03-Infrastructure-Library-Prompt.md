@@ -5,88 +5,74 @@ Generate a comprehensive Infrastructure Layer library implementing external conc
 
 ## Project Configuration
 
-### Basic Setup
+### Simplified Project File
 ```xml
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk"/>
+```
 
-  <!-- Layer References -->
-  <ItemGroup>
-    <ProjectReference Include="..\BuildingBlocks.Domain\BuildingBlocks.Domain.csproj" />
-    <ProjectReference Include="..\BuildingBlocks.Application\BuildingBlocks.Application.csproj" />
-  </ItemGroup>
+**That's it!** All configuration is handled automatically by the centralized build system:
 
-  <!-- Infrastructure Dependencies -->
-  <ItemGroup>
-    <!-- Entity Framework Core -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" />
-    
-    <!-- Caching -->
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
-    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" />
-    
-    <!-- Configuration -->
-    <PackageReference Include="Microsoft.Extensions.Configuration" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
-    
-    <!-- Logging -->
-    <PackageReference Include="Microsoft.Extensions.Logging" />
-    <PackageReference Include="Serilog.Extensions.Hosting" />
-    <PackageReference Include="Serilog.Sinks.Console" />
-    <PackageReference Include="Serilog.Sinks.File" />
-    
-    <!-- Messaging -->
-    <PackageReference Include="Azure.ServiceBus" />
-    <PackageReference Include="RabbitMQ.Client" />
-    
-    <!-- Authentication -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
-    
-    <!-- Storage -->
-    <PackageReference Include="Azure.Storage.Blobs" />
-    <PackageReference Include="Azure.Storage.Files.Shares" />
-    
-    <!-- Communication -->
-    <PackageReference Include="MailKit" />
-    <PackageReference Include="SendGrid" />
-    
-    <!-- Monitoring -->
-    <PackageReference Include="OpenTelemetry" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
-    <PackageReference Include="ApplicationInsights.AspNetCore" />
-    
-    <!-- Background Jobs -->
-    <PackageReference Include="Hangfire.Core" />
-    <PackageReference Include="Hangfire.SqlServer" />
-    <PackageReference Include="Quartz" />
-    
-    <!-- HTTP Clients -->
-    <PackageReference Include="Microsoft.Extensions.Http" />
-    <PackageReference Include="Polly" />
-    
-    <!-- Security -->
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
-    <PackageReference Include="System.Security.Cryptography" />
-    
-    <!-- Validation -->
-    <PackageReference Include="FluentValidation" />
-    
-    <!-- Serialization -->
-    <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="Newtonsoft.Json" />
-  </ItemGroup>
-</Project>
+- **Target Framework**: .NET 8.0 (from `Directory.Build.props`)
+- **Language Features**: Implicit usings, nullable reference types, warnings as errors
+- **Documentation**: XML documentation generation enabled
+- **Project References**: `BuildingBlocks.Application` automatically referenced (gets Domain transitively)
+- **Package Management**: All packages automatically included via `Directory.Build.targets`
+- **Framework References**: `Microsoft.AspNetCore.App` automatically included
+- **Versioning**: Automatic versioning with Git integration
+- **Analysis**: Code quality rules from `BuildingBlocks.ruleset`
+
+### Automatic Package Inclusion
+The following packages are automatically included via the centralized build system:
+
+**Core Infrastructure Packages:**
+- Microsoft Extensions (Options, HTTP, FileProviders)
+- Entity Framework Core suite (if `IncludeEntityFramework` is enabled)
+- Caching providers (Memory, Redis if `IncludeCaching` is enabled)
+- System.IdentityModel.Tokens.Jwt, FluentValidation, Health Checks
+
+**Feature-Based Package Inclusion:**
+All additional packages are included based on feature flags:
+
+```xml
+<!-- Optional in individual .csproj to enable specific features -->
+<PropertyGroup>
+  <!-- Database & ORM -->
+  <IncludeEntityFramework>true</IncludeEntityFramework>        <!-- EF Core suite -->
+  
+  <!-- Caching -->
+  <IncludeCaching>true</IncludeCaching>                        <!-- Memory, Redis, StackExchange -->
+  
+  <!-- Authentication & Security -->
+  <IncludeAuthentication>true</IncludeAuthentication>          <!-- JWT, BCrypt, ASP.NET Core Auth -->
+  <IncludeSecurity>true</IncludeSecurity>                      <!-- Cryptography, Data Protection -->
+  
+  <!-- Mapping -->
+  <IncludeMapping>true</IncludeMapping>                        <!-- AutoMapper, Mapster -->
+  
+  <!-- Validation -->
+  <IncludeValidation>true</IncludeValidation>                  <!-- FluentValidation -->
+  
+  <!-- Serialization -->
+  <IncludeSerialization>true</IncludeSerialization>            <!-- JSON, Protobuf, MessagePack -->
+  
+  <!-- Background Services -->
+  <IncludeBackgroundServices>true</IncludeBackgroundServices>  <!-- Hangfire, Quartz -->
+  
+  <!-- Messaging -->
+  <IncludeMessaging>true</IncludeMessaging>                    <!-- Service Bus, RabbitMQ, MassTransit -->
+  
+  <!-- Monitoring -->
+  <IncludeMonitoring>true</IncludeMonitoring>                  <!-- OpenTelemetry, Serilog, Health Checks -->
+  
+  <!-- Cloud Storage -->
+  <IncludeCloudStorage>true</IncludeCloudStorage>              <!-- Azure Blobs, AWS S3 -->
+  
+  <!-- Communication -->
+  <IncludeEmailServices>true</IncludeEmailServices>            <!-- MailKit, SendGrid -->
+  
+  <!-- HTTP -->
+  <IncludeHttpClient>true</IncludeHttpClient>                  <!-- Polly, HTTP extensions -->
+</PropertyGroup>
 ```
 
 ## Folder Structure
@@ -156,14 +142,11 @@ BuildingBlocks.Infrastructure/
 │       ├── MessageBusConfiguration.cs # Bus configuration
 │       ├── ServiceBusConfiguration.cs # Service Bus config
 │       └── RabbitMQConfiguration.cs # RabbitMQ config
-├── Logging/                     # Logging implementations
-│   ├── ILoggerService.cs       # Logger service interface
-│   ├── LoggerService.cs        # Logger service implementation
-│   ├── OpenTelemetry/          # OpenTelemetry integration
-│   ├── Structured/             # Structured logging
-│   └── [Additional logging components]
 ├── Authentication/              # Authentication providers
 │   ├── JWT/                    # JWT authentication
+│   │   ├── JwtTokenService.cs  # JWT token service
+│   │   ├── JwtConfiguration.cs # JWT configuration
+│   │   └── JwtAuthenticationService.cs # JWT auth service
 │   ├── OAuth/                  # OAuth authentication
 │   ├── ApiKey/                 # API key authentication
 │   └── Identity/               # Identity management
@@ -199,6 +182,7 @@ BuildingBlocks.Infrastructure/
 │   └── ThirdParty/             # Third-party integrations
 ├── Security/                    # Security implementations
 │   ├── Encryption/             # Encryption services
+│   │   └── IEncryptionService.cs # Encryption interface
 │   ├── Hashing/                # Hashing services
 │   ├── KeyManagement/          # Key management
 │   └── Secrets/                # Secrets management
@@ -208,6 +192,7 @@ BuildingBlocks.Infrastructure/
 │   └── Custom/                 # Custom validation
 ├── Serialization/               # Serialization implementations
 │   ├── Json/                   # JSON serialization
+│   │   └── JsonSerializationService.cs # JSON service
 │   ├── Xml/                    # XML serialization
 │   ├── Binary/                 # Binary serialization
 │   └── Csv/                    # CSV serialization
@@ -217,12 +202,6 @@ BuildingBlocks.Infrastructure/
 │   ├── IdempotencyProcessor.cs # Idempotency processor
 │   ├── IdempotencyMiddleware.cs # Idempotency middleware
 │   └── IdempotencyConfiguration.cs # Configuration
-├── Configuration/               # Configuration management
-│   ├── IConfigurationService.cs # Configuration service
-│   ├── ConfigurationService.cs # Configuration implementation
-│   ├── Settings/               # Application settings
-│   ├── Providers/              # Configuration providers
-│   └── Validation/             # Configuration validation
 └── Extensions/                  # Extension methods
     ├── ServiceCollectionExtensions.cs # DI registration
     ├── ApplicationBuilderExtensions.cs # App builder extensions
@@ -311,17 +290,17 @@ public class Repository<TEntity, TId, TIdValue> : ReadOnlyRepository<TEntity, TI
 
 ### Caching Implementation
 
-**RedisCacheService.cs** - Redis Cache Implementation:
+**DistributedCacheService.cs** - Redis Cache Implementation:
 ```csharp
-public class RedisCacheService : ICacheService
+public class DistributedCacheService : ICacheService
 {
     private readonly IDistributedCache _distributedCache;
-    private readonly ILogger<RedisCacheService> _logger;
+    private readonly ILogger<DistributedCacheService> _logger;
     private readonly CacheConfiguration _configuration;
 
-    public RedisCacheService(
+    public DistributedCacheService(
         IDistributedCache distributedCache,
-        ILogger<RedisCacheService> logger,
+        ILogger<DistributedCacheService> logger,
         CacheConfiguration configuration)
     {
         _distributedCache = distributedCache;
@@ -452,14 +431,14 @@ public class InMemoryMessageBus : IMessageBus
 
 ### Authentication Implementation
 
-**JwtAuthenticationService.cs** - JWT Authentication:
+**JwtTokenService.cs** - JWT Token Service:
 ```csharp
-public class JwtAuthenticationService : IAuthenticationService
+public class JwtTokenService : IJwtTokenService
 {
     private readonly JwtConfiguration _configuration;
-    private readonly ILogger<JwtAuthenticationService> _logger;
+    private readonly ILogger<JwtTokenService> _logger;
 
-    public JwtAuthenticationService(JwtConfiguration configuration, ILogger<JwtAuthenticationService> logger)
+    public JwtTokenService(JwtConfiguration configuration, ILogger<JwtTokenService> logger)
     {
         _configuration = configuration;
         _logger = logger;
@@ -514,54 +493,25 @@ public class JwtAuthenticationService : IAuthenticationService
 }
 ```
 
-### Background Services
+## Centralized Build System Benefits
 
-**BackgroundTaskService.cs** - Background Task Processing:
-```csharp
-public class BackgroundTaskService : BackgroundService, IBackgroundTaskService
-{
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<BackgroundTaskService> _logger;
-    private readonly Channel<Func<IServiceProvider, CancellationToken, Task>> _queue;
+### 1. Feature-Based Package Management
+- **Optional features**: Only include packages you need via feature flags
+- **Consistent versions**: All Infrastructure projects use same package versions
+- **Zero configuration**: No manual package management required
+- **Security updates**: Centrally managed and automatically applied
 
-    public BackgroundTaskService(IServiceProvider serviceProvider, ILogger<BackgroundTaskService> logger)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-        
-        var options = new BoundedChannelOptions(100)
-        {
-            FullMode = BoundedChannelFullMode.Wait
-        };
-        
-        _queue = Channel.CreateBounded<Func<IServiceProvider, CancellationToken, Task>>(options);
-    }
+### 2. Clean Architecture Enforcement
+- **Application reference**: `BuildingBlocks.Application` automatically referenced
+- **Domain access**: Gets Domain layer transitively through Application
+- **Framework references**: ASP.NET Core framework automatically included
+- **Architectural rules**: Custom analyzers enforce Infrastructure patterns
 
-    public async Task QueueBackgroundWorkItemAsync(Func<IServiceProvider, CancellationToken, Task> workItem)
-    {
-        if (workItem == null)
-            throw new ArgumentNullException(nameof(workItem));
-
-        await _queue.Writer.WriteAsync(workItem);
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await foreach (var workItem in _queue.Reader.ReadAllAsync(stoppingToken))
-        {
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                await workItem(scope.ServiceProvider, stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred executing background work item");
-            }
-        }
-    }
-}
-```
+### 3. Automatic Configuration
+- **Entity Framework**: Automatic configuration when enabled
+- **Caching providers**: Multiple cache providers with feature flags
+- **Authentication**: JWT, OAuth, API Key support when enabled
+- **Monitoring**: OpenTelemetry, Health Checks, Serilog when enabled
 
 ## Service Registration
 
@@ -571,19 +521,19 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add data layer
+        // Add data layer (if EF enabled)
         services.AddDataLayer(configuration);
         
-        // Add caching
+        // Add caching (if caching enabled)
         services.AddCaching(configuration);
         
-        // Add messaging
+        // Add messaging (if messaging enabled)
         services.AddMessaging(configuration);
         
-        // Add authentication
+        // Add authentication (if auth enabled)
         services.AddInfrastructureAuthentication(configuration);
         
-        // Add background services
+        // Add background services (if background services enabled)
         services.AddBackgroundServices(configuration);
         
         return services;
@@ -591,6 +541,9 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddDataLayer(this IServiceCollection services, IConfiguration configuration)
     {
+        // Only add if EntityFramework feature is enabled
+        if (!IsFeatureEnabled("IncludeEntityFramework")) return services;
+        
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
             
@@ -601,7 +554,11 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    // Additional registration methods...
+    private static bool IsFeatureEnabled(string featureName)
+    {
+        // Check MSBuild property or configuration
+        return true; // Implementation details...
+    }
 }
 ```
 
@@ -637,4 +594,41 @@ public static class ServiceCollectionExtensions
 - **Structured logging** with correlation IDs
 - **Metrics collection** for performance monitoring
 
-This Infrastructure Layer provides concrete implementations for all external concerns while maintaining clean interfaces and supporting multiple provider options for maximum flexibility. 
+## Feature Flag Usage Examples
+
+### Entity Framework Configuration
+```xml
+<!-- Enable EF Core in your service's .csproj -->
+<PropertyGroup>
+  <IncludeEntityFramework>true</IncludeEntityFramework>
+</PropertyGroup>
+```
+
+### Full-Featured Infrastructure
+```xml
+<!-- Enable all infrastructure features -->
+<PropertyGroup>
+  <IncludeEntityFramework>true</IncludeEntityFramework>
+  <IncludeCaching>true</IncludeCaching>
+  <IncludeAuthentication>true</IncludeAuthentication>
+  <IncludeMessaging>true</IncludeMessaging>
+  <IncludeMonitoring>true</IncludeMonitoring>
+  <IncludeBackgroundServices>true</IncludeBackgroundServices>
+  <IncludeCloudStorage>true</IncludeCloudStorage>
+  <IncludeEmailServices>true</IncludeEmailServices>
+</PropertyGroup>
+```
+
+## Integration with Build System
+
+The Infrastructure library integrates seamlessly with the centralized build system:
+
+- **Package Metadata**: Automatically configured with proper PackageId and description
+- **Dependencies**: Application layer automatically referenced (gets Domain transitively)
+- **Feature Flags**: Comprehensive set of optional infrastructure packages
+- **Framework References**: ASP.NET Core framework automatically included
+- **Code Quality**: Infrastructure-specific architectural rules enforced
+- **Documentation**: XML docs generated and published automatically
+- **Provider Options**: Multiple implementation choices for each concern
+
+This Infrastructure Layer provides comprehensive implementations for all external concerns while maintaining clean interfaces and supporting multiple provider options through feature flags, with zero configuration overhead. 

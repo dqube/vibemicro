@@ -5,16 +5,35 @@ Generate a comprehensive Domain layer library following Domain-Driven Design (DD
 
 ## Project Configuration
 
-### Target Framework & Features
-- **.NET 8.0** (`net8.0`)
-- **Implicit Usings**: Enabled
-- **Nullable Reference Types**: Enabled
-- **Treat Warnings as Errors**: Enabled
-- **Generate Documentation File**: Enabled
-
-### Package Dependencies
+### Simplified Project File
 ```xml
-<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+<Project Sdk="Microsoft.NET.Sdk"/>
+```
+
+**That's it!** All configuration is handled automatically by the centralized build system:
+
+- **Target Framework**: .NET 8.0 (from `Directory.Build.props`)
+- **Language Features**: Implicit usings, nullable reference types, warnings as errors
+- **Documentation**: XML documentation generation enabled
+- **Package Management**: All packages automatically included via `Directory.Build.targets`
+- **Versioning**: Automatic versioning with Git integration
+- **Analysis**: Code quality rules from `BuildingBlocks.ruleset`
+
+### Automatic Package Inclusion
+The following packages are automatically included via the centralized build system:
+- `System.Text.Json` (Domain-specific package)
+- Core Microsoft Extensions (DI, Logging, Configuration abstractions)
+- `System.ComponentModel.Annotations`
+- Source Link for debugging (in non-test projects)
+- Nullable reference types analyzer
+
+### Feature Control
+Domain projects can optionally enable additional features:
+```xml
+<!-- Optional in individual .csproj if needed -->
+<PropertyGroup>
+  <IncludeDomainHelpers>true</IncludeDomainHelpers>  <!-- Adds Ardalis.GuardClauses, CSharpFunctionalExtensions -->
+</PropertyGroup>
 ```
 
 ## Architecture & Patterns
@@ -68,7 +87,9 @@ StronglyTypedIds/
 ├── GuidId.cs              # GUID-based ID struct
 ├── IntId.cs               # Integer-based ID struct
 ├── LongId.cs              # Long-based ID struct
-└── StringId.cs            # String-based ID struct
+├── StringId.cs            # String-based ID struct
+├── IdJsonConverter.cs     # JSON serialization support
+└── StronglyTypedIdExtensions.cs # Extension methods
 ```
 
 **Implementation Pattern (GuidId.cs)**:
@@ -185,7 +206,10 @@ Common/
 ├── PhoneNumber.cs          # Phone value object
 ├── Address.cs              # Address value object
 ├── Money.cs                # Money with currency
-└── DateRange.cs            # Date range value object
+├── Currency.cs             # Currency enumeration
+├── DateRange.cs            # Date range value object
+├── Percentage.cs           # Percentage value object
+└── Url.cs                  # URL value object
 ```
 
 ### `/Exceptions` - Domain-Specific Errors
@@ -195,13 +219,38 @@ Exceptions/
 ├── BusinessRuleValidationException.cs   # Rule violation
 ├── AggregateNotFoundException.cs        # Entity not found
 ├── ConcurrencyException.cs              # Optimistic concurrency
-└── InvalidOperationDomainException.cs   # Invalid operations
+├── InvalidOperationDomainException.cs   # Invalid operations
+└── InvariantViolationException.cs       # Domain invariant violations
+```
+
+### `/Guards` - Input Validation
+```
+Guards/
+├── Guard.cs                # Guard clause implementations
+└── GuardExtensions.cs      # Extension methods for validation
+```
+
+### `/Services` - Domain Services
+```
+Services/
+├── IDomainService.cs       # Domain service marker interface
+└── DomainServiceBase.cs    # Base domain service implementation
+```
+
+### `/Validation` - Domain Validation
+```
+Validation/
+├── IDomainValidator.cs     # Domain validator interface
+├── DomainValidatorBase.cs  # Base domain validator
+├── ValidationError.cs      # Validation error representation
+└── ValidationResult.cs     # Validation result with errors
 ```
 
 ### `/Extensions` - Utility Methods
 ```
 Extensions/
-└── DomainExtensions.cs     # Domain object extensions
+├── DomainExtensions.cs     # Domain object extensions
+└── JsonExtensions.cs       # JSON serialization extensions
 ```
 
 **Internal Extension Methods**:
@@ -215,6 +264,31 @@ internal static class DomainExtensions
     internal static void SetModifiedAudit(this IAuditableEntity entity, string modifiedBy);
 }
 ```
+
+## Centralized Build System Benefits
+
+### 1. Automatic Package Management
+- **No manual PackageReference entries** needed
+- **Version consistency** across all projects
+- **Feature-based inclusion** via property flags
+- **Security updates** managed centrally
+
+### 2. Clean Architecture Enforcement
+- **No dependencies** on other layers (Domain is pure)
+- **Automatic project structure** validation
+- **Layered architecture** rules enforced
+
+### 3. Modern .NET Features
+- **Implicit usings** configured globally
+- **Nullable reference types** enabled
+- **File-scoped namespaces** supported
+- **Records and pattern matching** optimized
+
+### 4. Development Experience
+- **XML documentation** generated automatically
+- **Code analysis** with custom rules
+- **Source Link** for debugging
+- **Git integration** with version info
 
 ## Key Design Principles
 
@@ -263,8 +337,7 @@ internal sealed record Username(string Value) : SingleValueObject<string>(Value)
 {
     protected static override string ValidateValue(string value)
     {
-        if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Username cannot be empty");
+        Guard.Against.NullOrWhiteSpace(value, nameof(value));
         return value.Trim().ToLowerInvariant();
     }
 }
@@ -300,5 +373,17 @@ public sealed class UsernameUniqueRule : BusinessRuleBase
 3. **Persistence**: Map domain objects to database entities
 4. **Validation**: Fail fast with domain exceptions
 5. **Testing**: Create builders for complex domain objects
+6. **JSON Serialization**: Strongly-typed IDs automatically serialize/deserialize
+7. **Build System**: Leverage centralized package management and feature flags
 
-Generate this library with full implementations, comprehensive XML documentation, and adherence to these architectural principles. 
+## Integration with Build System
+
+The Domain library integrates seamlessly with the centralized build system:
+
+- **Package Metadata**: Automatically configured with proper PackageId and description
+- **Dependencies**: No external dependencies (pure domain layer)
+- **Feature Flags**: Optional domain helpers can be enabled
+- **Code Quality**: Domain-specific architectural rules enforced
+- **Documentation**: XML docs generated and published automatically
+
+Generate this library with full implementations, comprehensive XML documentation, and adherence to these architectural principles while leveraging the centralized build system for maximum developer productivity. 
