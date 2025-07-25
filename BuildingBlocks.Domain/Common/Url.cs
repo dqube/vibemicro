@@ -168,7 +168,7 @@ public sealed record Url : SingleValueObject<string>
     /// <summary>
     /// Implicit conversion from string to Url
     /// </summary>
-    /// <param name="value">The URL string</param>
+    /// <param name="url">The URL object</param>
     public static implicit operator Uri(Url url) => url.Uri;
 
     /// <summary>

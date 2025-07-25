@@ -1,7 +1,7 @@
 using BuildingBlocks.Application.CQRS.Events;
 using BuildingBlocks.Application.Outbox;
 using AuthService.Domain.DomainEvents;
-using AuthService.Domain.Events;
+using AuthService.Application.Events;
 using AuthService.Domain.Repositories;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;

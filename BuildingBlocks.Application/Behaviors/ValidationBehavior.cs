@@ -19,7 +19,7 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
 
         // Validate using data annotations
         var validationContext = new ValidationContext(request);
-        var validationResults = new List<ValidationResult>();
+        var validationResults = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
         
         if (!Validator.TryValidateObject(request, validationContext, validationResults, true))
         {

@@ -1,3 +1,4 @@
+using BuildingBlocks.Application.CQRS.Events;
 using BuildingBlocks.Application.CQRS.Mediator;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -81,10 +82,10 @@ public class InboxProcessor : IInboxProcessor
             // Deserialize and process the message based on its type
             var messageObject = DeserializeMessage(message);
             
-            if (messageObject != null)
+            if (messageObject is IEvent eventMessage)
             {
                 // Send the message through the mediator
-                await _mediator.PublishAsync(messageObject, cancellationToken);
+                await _mediator.PublishAsync(eventMessage, cancellationToken);
             }
 
             // Mark as processed

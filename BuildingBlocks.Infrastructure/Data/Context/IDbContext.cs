@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace BuildingBlocks.Infrastructure.Data.Context;
 
@@ -11,7 +12,7 @@ public interface IDbContext : IDisposable, IAsyncDisposable
     /// <summary>
     /// Gets the database
     /// </summary>
-    Database Database { get; }
+    DatabaseFacade Database { get; }
 
     /// <summary>
     /// Gets the change tracker

@@ -7,7 +7,7 @@ namespace AuthService.Domain.Repositories;
 /// <summary>
 /// Repository interface for Role entities
 /// </summary>
-public interface IRoleRepository : IReadOnlyRepository<Role, RoleId>
+public interface IRoleRepository : IIntRepository<Role, RoleId>
 {
     /// <summary>
     /// Finds a role by name

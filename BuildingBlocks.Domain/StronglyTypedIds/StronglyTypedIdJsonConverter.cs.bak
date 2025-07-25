@@ -115,13 +115,22 @@ public class StronglyTypedIdJsonConverter : JsonConverter<object>
     /// <returns>The strongly-typed identifier</returns>
     public override object Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        // Use reflection with proper parameter passing for ref parameters
         var readMethod = _innerConverter.GetType().GetMethod("Read");
         if (readMethod == null)
         {
             throw new InvalidOperationException($"Read method not found on converter for {typeToConvert.Name}");
         }
 
-        var result = readMethod.Invoke(_innerConverter, new object[] { reader, typeToConvert, options });
+        var parameters = new object?[] { reader, typeToConvert, options };
+        var result = readMethod.Invoke(_innerConverter, parameters);
+        
+        // Update the reader from the modified parameter
+        if (parameters[0] is Utf8JsonReader updatedReader)
+        {
+            reader = updatedReader;
+        }
+        
         return result ?? throw new JsonException($"Failed to deserialize {typeToConvert.Name}");
     }
 

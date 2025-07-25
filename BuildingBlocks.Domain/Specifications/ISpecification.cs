@@ -20,4 +20,24 @@ public interface ISpecification<T>
     /// <param name="entity">The entity to check</param>
     /// <returns>True if the entity satisfies the specification</returns>
     bool IsSatisfiedBy(T entity);
+
+    /// <summary>
+    /// Combines this specification with another using AND logic
+    /// </summary>
+    /// <param name="specification">The specification to combine with</param>
+    /// <returns>A new combined specification</returns>
+    ISpecification<T> And(ISpecification<T> specification);
+
+    /// <summary>
+    /// Combines this specification with another using OR logic
+    /// </summary>
+    /// <param name="specification">The specification to combine with</param>
+    /// <returns>A new combined specification</returns>
+    ISpecification<T> Or(ISpecification<T> specification);
+
+    /// <summary>
+    /// Negates this specification
+    /// </summary>
+    /// <returns>A new negated specification</returns>
+    ISpecification<T> Not();
 } 

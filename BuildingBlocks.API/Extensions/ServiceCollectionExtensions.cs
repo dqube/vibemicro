@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Versioning;
+using Asp.Versioning;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -395,8 +395,8 @@ public class ApiKeyAuthenticationHandler : Microsoft.AspNetCore.Authentication.A
         IOptionsMonitor<ApiKeyAuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         System.Text.Encodings.Web.UrlEncoder encoder,
-        ISystemClock clock)
-        : base(options, logger, encoder, clock)
+        TimeProvider timeProvider)
+        : base(options, logger, encoder, timeProvider)
     {
     }
 

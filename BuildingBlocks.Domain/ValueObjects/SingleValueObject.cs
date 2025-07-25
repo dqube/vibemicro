@@ -4,20 +4,29 @@ namespace BuildingBlocks.Domain.ValueObjects;
 /// Base record for value objects that contain a single value
 /// </summary>
 /// <typeparam name="T">The type of the wrapped value</typeparam>
-public abstract record SingleValueObject<T>(T Value) : ValueObject
+public abstract record SingleValueObject<T> : ValueObject
     where T : notnull
 {
     /// <summary>
     /// Gets the wrapped value with validation
     /// </summary>
-    public T Value { get; init; } = ValidateValue(Value);
+    public T Value { get; init; }
+    
+    /// <summary>
+    /// Initializes a new instance of the SingleValueObject record
+    /// </summary>
+    /// <param name="value">The value to wrap</param>
+    protected SingleValueObject(T value)
+    {
+        Value = ValidateValue(value);
+    }
 
     /// <summary>
     /// Validates the input value
     /// </summary>
     /// <param name="value">The value to validate</param>
     /// <returns>The validated value</returns>
-    protected static virtual T ValidateValue(T value)
+    protected virtual T ValidateValue(T value)
     {
         return value ?? throw new ArgumentNullException(nameof(value));
     }

@@ -77,13 +77,12 @@ public class OutboxProcessor : IOutboxProcessor
 
         try
         {
-            // Publish the message to the message bus
-            await _messageBus.PublishAsync(
-                message.MessageType,
-                message.Content,
-                message.Headers,
-                message.Destination,
-                cancellationToken);
+            // Deserialize the message and publish to the message bus
+            var messageObject = DeserializeMessage(message);
+            if (messageObject != null)
+            {
+                await _messageBus.PublishAsync(messageObject, cancellationToken);
+            }
 
             // Mark as processed
             await _outboxService.MarkAsProcessedAsync(message.Id, cancellationToken);
@@ -98,6 +97,34 @@ public class OutboxProcessor : IOutboxProcessor
 
             await _outboxService.MarkAsFailedAsync(message.Id, ex.Message, cancellationToken);
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Deserializes a message from the outbox
+    /// </summary>
+    /// <param name="message">The outbox message</param>
+    /// <returns>The deserialized message object</returns>
+    private object? DeserializeMessage(OutboxMessage message)
+    {
+        try
+        {
+            // This is a simplified implementation
+            // In a real scenario, you would use a proper message registry or type mapping
+            var messageType = Type.GetType(message.MessageType);
+            if (messageType == null)
+            {
+                _logger.LogWarning("Unknown message type: {MessageType}", message.MessageType);
+                return null;
+            }
+
+            return System.Text.Json.JsonSerializer.Deserialize(message.Content, messageType);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to deserialize message {MessageId} of type {MessageType}", 
+                message.Id, message.MessageType);
+            return null;
         }
     }
 } 

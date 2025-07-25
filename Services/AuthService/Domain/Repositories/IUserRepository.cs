@@ -8,7 +8,7 @@ namespace AuthService.Domain.Repositories;
 /// <summary>
 /// Repository interface for User entities
 /// </summary>
-public interface IUserRepository : IRepository<User, UserId>
+public interface IUserRepository : IGuidRepository<User, UserId>
 {
     /// <summary>
     /// Finds a user by username

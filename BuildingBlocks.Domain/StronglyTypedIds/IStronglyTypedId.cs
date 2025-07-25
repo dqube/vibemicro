@@ -4,7 +4,7 @@ namespace BuildingBlocks.Domain.StronglyTypedIds;
 /// Interface for strongly-typed identifiers
 /// </summary>
 /// <typeparam name="T">The underlying type of the identifier</typeparam>
-public interface IStronglyTypedId<out T> : IEquatable<IStronglyTypedId<T>>
+public interface IStronglyTypedId<T> : IEquatable<IStronglyTypedId<T>>
     where T : notnull
 {
     /// <summary>

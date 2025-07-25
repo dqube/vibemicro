@@ -6,8 +6,8 @@ namespace BuildingBlocks.Domain.StronglyTypedIds;
 /// Base readonly struct for integer-based strongly-typed identifiers
 /// </summary>
 /// <typeparam name="TId">The derived identifier type</typeparam>
-[StronglyTypedId(typeof(int))]
-[JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
+// [StronglyTypedId(typeof(int))]
+// [JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
 public readonly struct IntId<TId> : IStronglyTypedId<int>, IEquatable<IntId<TId>>
     where TId : struct, IStronglyTypedId<int>
 {

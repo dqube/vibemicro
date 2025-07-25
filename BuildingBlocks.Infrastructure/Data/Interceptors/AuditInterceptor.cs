@@ -58,8 +58,8 @@ public class AuditInterceptor : SaveChangesInterceptor
                     break;
 
                 case EntityState.Modified:
-                    entry.Entity.ModifiedAt = DateTime.UtcNow;
-                    entry.Entity.ModifiedBy = GetCurrentUser(); // TODO: Get from user context
+                    entry.Entity.LastModifiedAt = DateTime.UtcNow;
+                    entry.Entity.LastModifiedBy = GetCurrentUser(); // TODO: Get from user context
                     entry.Property(e => e.CreatedAt).IsModified = false;
                     entry.Property(e => e.CreatedBy).IsModified = false;
                     break;

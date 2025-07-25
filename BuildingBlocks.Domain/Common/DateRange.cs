@@ -5,7 +5,7 @@ namespace BuildingBlocks.Domain.Common;
 /// <summary>
 /// Value object representing a date range
 /// </summary>
-public class DateRange : ValueObject
+public record DateRange : ValueObject
 {
     /// <summary>
     /// Gets the start date of the range

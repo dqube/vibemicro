@@ -96,7 +96,7 @@ public interface IRepository<TEntity, TId, TIdValue> : IReadOnlyRepository<TEnti
 /// <typeparam name="TId">The strongly-typed integer ID type</typeparam>
 public interface IIntRepository<TEntity, TId> : IRepository<TEntity, TId, int>
     where TEntity : IntEntity<TId>
-    where TId : IntId<TId>
+    where TId : struct, IStronglyTypedId<int>
 {
 }
 
@@ -107,7 +107,7 @@ public interface IIntRepository<TEntity, TId> : IRepository<TEntity, TId, int>
 /// <typeparam name="TId">The strongly-typed long ID type</typeparam>
 public interface ILongRepository<TEntity, TId> : IRepository<TEntity, TId, long>
     where TEntity : LongEntity<TId>
-    where TId : LongId<TId>
+    where TId : struct, IStronglyTypedId<long>
 {
 }
 
@@ -118,7 +118,7 @@ public interface ILongRepository<TEntity, TId> : IRepository<TEntity, TId, long>
 /// <typeparam name="TId">The strongly-typed GUID ID type</typeparam>
 public interface IGuidRepository<TEntity, TId> : IRepository<TEntity, TId, Guid>
     where TEntity : GuidEntity<TId>
-    where TId : GuidId<TId>
+    where TId : struct, IStronglyTypedId<Guid>
 {
 }
 
@@ -129,6 +129,6 @@ public interface IGuidRepository<TEntity, TId> : IRepository<TEntity, TId, Guid>
 /// <typeparam name="TId">The strongly-typed string ID type</typeparam>
 public interface IStringRepository<TEntity, TId> : IRepository<TEntity, TId, string>
     where TEntity : StringEntity<TId>
-    where TId : StringId<TId>
+    where TId : struct, IStronglyTypedId<string>
 {
 } 

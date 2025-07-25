@@ -8,7 +8,7 @@ namespace AuthService.Domain.Entities;
 /// <summary>
 /// Registration token entity for email verification and password reset
 /// </summary>
-public class RegistrationToken : Entity<TokenId>, IAuditableEntity
+public class RegistrationToken : GuidEntity<TokenId>, IAuditableEntity
 {
     /// <summary>
     /// Gets the user identifier this token belongs to

@@ -1,6 +1,6 @@
 using BuildingBlocks.Application.CQRS.Events;
 
-namespace AuthService.Domain.Events;
+namespace AuthService.Application.Events;
 
 /// <summary>
 /// Integration event raised when a user is registered
@@ -86,4 +86,4 @@ public sealed record UserAccountLockedIntegrationEvent(
     string Username,
     DateTime LockoutEnd,
     string Reason,
-    DateTime LockedAt) : IntegrationEventBase; 
+    DateTime LockedAt) : IntegrationEventBase;

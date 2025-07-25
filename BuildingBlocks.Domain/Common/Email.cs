@@ -6,14 +6,14 @@ namespace BuildingBlocks.Domain.Common;
 /// <summary>
 /// Value object representing an email address
 /// </summary>
-public class Email : SingleValueObject<string>
+public record Email : SingleValueObject<string>
 {
     private static readonly Regex EmailRegex = new(
         @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>
-    /// Initializes a new instance of the Email class
+    /// Initializes a new instance of the Email record
     /// </summary>
     /// <param name="value">The email address</param>
     public Email(string value) : base(ValidateAndNormalize(value))

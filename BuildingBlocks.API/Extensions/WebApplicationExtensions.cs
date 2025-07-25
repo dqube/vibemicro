@@ -74,12 +74,8 @@ public static class WebApplicationExtensions
             options.RoutePrefix = "swagger";
         });
 
-        // Add Scalar API documentation
-        app.UseScalar(options =>
-        {
-            options.RoutePrefix = "scalar";
-            options.OpenApiRoutePattern = "/swagger/{documentName}/swagger.json";
-        });
+        // Scalar API documentation removed due to .NET 8.0 compatibility issues
+        // Can be re-added when upgrading to .NET 9.0
 
         return app;
     }

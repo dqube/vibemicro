@@ -8,7 +8,7 @@ namespace AuthService.Domain.Repositories;
 /// <summary>
 /// Repository interface for RegistrationToken entities
 /// </summary>
-public interface IRegistrationTokenRepository : IRepository<RegistrationToken, TokenId>
+public interface IRegistrationTokenRepository : IGuidRepository<RegistrationToken, TokenId>
 {
     /// <summary>
     /// Gets all tokens for a specific user

@@ -17,7 +17,7 @@ public static class SeedDataExtensions
     public static async Task SeedDataAsync(this IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<SeedDataExtensions>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<IDataSeeder>>();
         
         logger.LogInformation("Starting data seeding process");
 

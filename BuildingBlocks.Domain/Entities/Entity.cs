@@ -45,7 +45,7 @@ public abstract class Entity<TId, TIdValue> : IEquatable<Entity<TId, TIdValue>>
     /// <summary>
     /// Clears all domain events from this entity
     /// </summary>
-    internal void ClearDomainEvents()
+    public void ClearDomainEvents()
     {
         _domainEvents.Clear();
     }

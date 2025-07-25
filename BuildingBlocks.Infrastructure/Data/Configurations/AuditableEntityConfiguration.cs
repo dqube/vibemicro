@@ -42,11 +42,11 @@ public abstract class AuditableEntityConfiguration<TEntity, TId, TIdValue> : Ent
             .HasMaxLength(256)
             .IsRequired(false);
 
-        // Updated properties
-        builder.Property(e => e.UpdatedAt)
+        // Last modified properties
+        builder.Property(e => e.LastModifiedAt)
             .IsRequired(false);
 
-        builder.Property(e => e.UpdatedBy)
+        builder.Property(e => e.LastModifiedBy)
             .HasMaxLength(256)
             .IsRequired(false);
     }

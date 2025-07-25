@@ -181,7 +181,7 @@ public abstract class DbContextBase : DbContext, IDbContext
                     .HasMaxLength(256);
 
                 modelBuilder.Entity(entityType.ClrType)
-                    .Property(nameof(IAuditableEntity.ModifiedBy))
+                    .Property(nameof(IAuditableEntity.LastModifiedBy))
                     .HasMaxLength(256);
             }
         }
@@ -242,8 +242,8 @@ public abstract class DbContextBase : DbContext, IDbContext
                     break;
 
                 case EntityState.Modified:
-                    entry.Entity.ModifiedAt = DateTime.UtcNow;
-                    // ModifiedBy should be set by the audit interceptor
+                    entry.Entity.LastModifiedAt = DateTime.UtcNow;
+                    // LastModifiedBy should be set by the audit interceptor
                     entry.Property(e => e.CreatedAt).IsModified = false;
                     entry.Property(e => e.CreatedBy).IsModified = false;
                     break;

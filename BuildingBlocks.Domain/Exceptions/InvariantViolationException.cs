@@ -1,5 +1,3 @@
-using BuildingBlocks.Domain.Invariants;
-
 namespace BuildingBlocks.Domain.Exceptions;
 
 /// <summary>
@@ -7,20 +5,6 @@ namespace BuildingBlocks.Domain.Exceptions;
 /// </summary>
 public class InvariantViolationException : DomainException
 {
-    /// <summary>
-    /// Gets the invariant that was violated
-    /// </summary>
-    public IInvariant? ViolatedInvariant { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the InvariantViolationException class
-    /// </summary>
-    /// <param name="violatedInvariant">The invariant that was violated</param>
-    public InvariantViolationException(IInvariant violatedInvariant)
-        : base(violatedInvariant.Message, violatedInvariant.Code, violatedInvariant)
-    {
-        ViolatedInvariant = violatedInvariant;
-    }
 
     /// <summary>
     /// Initializes a new instance of the InvariantViolationException class
@@ -48,11 +32,6 @@ public class InvariantViolationException : DomainException
     /// </summary>
     public override string ToString()
     {
-        if (ViolatedInvariant != null)
-        {
-            return $"Invariant violation: {ViolatedInvariant.Message} (Code: {ViolatedInvariant.Code}, Type: {ViolatedInvariant.GetType().Name})";
-        }
-        
         return $"Invariant violation: {Message} (Code: {ErrorCode})";
     }
 } 

@@ -5,7 +5,7 @@ namespace BuildingBlocks.Domain.Common;
 /// <summary>
 /// Value object representing a physical address
 /// </summary>
-public class Address : ValueObject
+public record Address : ValueObject
 {
     /// <summary>
     /// Gets the street address

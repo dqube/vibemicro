@@ -8,6 +8,7 @@ namespace BuildingBlocks.Domain.Validation;
 /// </summary>
 /// <typeparam name="T">The type to validate</typeparam>
 public abstract class DomainValidatorBase<T> : IDomainValidator<T>
+    where T : class
 {
     /// <summary>
     /// Gets the logger instance
@@ -114,7 +115,7 @@ public abstract class DomainValidatorBase<T> : IDomainValidator<T>
 
         if (!predicate(value))
         {
-            result.AddError(propertyName, errorMessage, errorCode);
+            result.AddError(propertyName, errorMessage, errorCode ?? string.Empty);
         }
     }
 
@@ -144,7 +145,7 @@ public abstract class DomainValidatorBase<T> : IDomainValidator<T>
 
         if (!await predicate(value))
         {
-            result.AddError(propertyName, errorMessage, errorCode);
+            result.AddError(propertyName, errorMessage, errorCode ?? string.Empty);
         }
     }
 

@@ -64,33 +64,33 @@ public sealed class PasswordMustMeetStrengthRequirementsRule : BusinessRuleBase
 
     public override string Message => "Password does not meet strength requirements.";
 
-    protected override bool CheckRule()
+    public override bool IsBroken()
     {
         if (string.IsNullOrWhiteSpace(_password))
-            return false;
+            return true;
 
         // Minimum length requirement
         if (_password.Length < 8)
-            return false;
+            return true;
 
         // Must contain at least one uppercase letter
         if (!_password.Any(char.IsUpper))
-            return false;
+            return true;
 
         // Must contain at least one lowercase letter
         if (!_password.Any(char.IsLower))
-            return false;
+            return true;
 
         // Must contain at least one digit
         if (!_password.Any(char.IsDigit))
-            return false;
+            return true;
 
         // Must contain at least one special character
         var specialCharacters = "!@#$%^&*(),.?\":{}|<>";
         if (!_password.Any(c => specialCharacters.Contains(c)))
-            return false;
+            return true;
 
-        return true;
+        return false;
     }
 }
 
@@ -110,9 +110,9 @@ public sealed class UserCanOnlyHaveValidRolesRule : BusinessRuleBase
 
     public override string Message => $"Role with ID '{_roleId}' is not valid or does not exist.";
 
-    protected override bool CheckRule()
+    public override bool IsBroken()
     {
-        return _isValidRole(_roleId);
+        return !_isValidRole(_roleId);
     }
 }
 
@@ -132,9 +132,9 @@ public sealed class UserLockoutMustHaveReasonableTimeoutRule : BusinessRuleBase
 
     public override string Message => $"Lockout duration of {_lockoutDuration} exceeds maximum allowed duration of {_maxAllowedDuration}.";
 
-    protected override bool CheckRule()
+    public override bool IsBroken()
     {
-        return _lockoutDuration <= _maxAllowedDuration;
+        return _lockoutDuration > _maxAllowedDuration;
     }
 }
 
@@ -160,10 +160,10 @@ public sealed class TokenExpirationMustBeReasonableRule : BusinessRuleBase
 
     public override string Message => $"Token expiration time exceeds maximum allowed duration for {_tokenType} tokens.";
 
-    protected override bool CheckRule()
+    public override bool IsBroken()
     {
         var duration = _expiration - DateTime.UtcNow;
-        return duration <= _maxAllowedDuration;
+        return duration > _maxAllowedDuration;
     }
 }
 
@@ -183,8 +183,8 @@ public sealed class OnlyActiveUsersCanPerformCriticalOperationsRule : BusinessRu
 
     public override string Message => "Only active, non-locked users can perform critical operations.";
 
-    protected override bool CheckRule()
+    public override bool IsBroken()
     {
-        return _isUserActive && !_isUserLockedOut;
+        return !_isUserActive || _isUserLockedOut;
     }
 } 

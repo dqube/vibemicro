@@ -6,8 +6,8 @@ namespace AuthService.Domain.StronglyTypedIds;
 /// <summary>
 /// Strongly-typed identifier for RegistrationToken entities
 /// </summary>
-[StronglyTypedId(typeof(Guid))]
-[JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
+// [StronglyTypedId(typeof(Guid))]
+// [JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
 public readonly struct TokenId : IStronglyTypedId<Guid>, IEquatable<TokenId>
 {
     /// <summary>

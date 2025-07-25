@@ -96,7 +96,7 @@ public class UnitOfWork : IUnitOfWork
     /// <returns>The repository instance</returns>
     public IIntRepository<TEntity, TId> IntRepository<TEntity, TId>()
         where TEntity : IntEntity<TId>
-        where TId : IntId<TId>
+        where TId : struct, IStronglyTypedId<int>
     {
         return (IIntRepository<TEntity, TId>)Repository<TEntity, TId, int>();
     }
@@ -109,7 +109,7 @@ public class UnitOfWork : IUnitOfWork
     /// <returns>The repository instance</returns>
     public ILongRepository<TEntity, TId> LongRepository<TEntity, TId>()
         where TEntity : LongEntity<TId>
-        where TId : LongId<TId>
+        where TId : struct, IStronglyTypedId<long>
     {
         return (ILongRepository<TEntity, TId>)Repository<TEntity, TId, long>();
     }
@@ -122,7 +122,7 @@ public class UnitOfWork : IUnitOfWork
     /// <returns>The repository instance</returns>
     public IGuidRepository<TEntity, TId> GuidRepository<TEntity, TId>()
         where TEntity : GuidEntity<TId>
-        where TId : GuidId<TId>
+        where TId : struct, IStronglyTypedId<Guid>
     {
         return (IGuidRepository<TEntity, TId>)Repository<TEntity, TId, Guid>();
     }
@@ -135,7 +135,7 @@ public class UnitOfWork : IUnitOfWork
     /// <returns>The repository instance</returns>
     public IStringRepository<TEntity, TId> StringRepository<TEntity, TId>()
         where TEntity : StringEntity<TId>
-        where TId : StringId<TId>
+        where TId : struct, IStronglyTypedId<string>
     {
         return (IStringRepository<TEntity, TId>)Repository<TEntity, TId, string>();
     }

@@ -1,5 +1,6 @@
 using BuildingBlocks.Infrastructure.Data.Context;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.Infrastructure.Data.Migrations;
@@ -9,13 +10,13 @@ namespace BuildingBlocks.Infrastructure.Data.Migrations;
 /// </summary>
 public class MigrationRunner : IMigrationRunner
 {
-    private readonly IDbContextFactory _dbContextFactory;
+    private readonly BuildingBlocks.Infrastructure.Data.Context.IDbContextFactory<IDbContext> _dbContextFactory;
     private readonly ILogger<MigrationRunner> _logger;
 
     /// <summary>
     /// Initializes a new instance of the MigrationRunner class
     /// </summary>
-    public MigrationRunner(IDbContextFactory dbContextFactory, ILogger<MigrationRunner> logger)
+    public MigrationRunner(BuildingBlocks.Infrastructure.Data.Context.IDbContextFactory<IDbContext> dbContextFactory, ILogger<MigrationRunner> logger)
     {
         _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

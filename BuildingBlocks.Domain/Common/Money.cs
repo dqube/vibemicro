@@ -6,7 +6,7 @@ namespace BuildingBlocks.Domain.Common;
 /// <summary>
 /// Value object representing money with amount and currency
 /// </summary>
-public class Money : ValueObject
+public record Money : ValueObject
 {
     /// <summary>
     /// Gets the amount of money

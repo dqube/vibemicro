@@ -6,8 +6,8 @@ namespace AuthService.Domain.StronglyTypedIds;
 /// <summary>
 /// Strongly-typed identifier for Role entities
 /// </summary>
-[StronglyTypedId(typeof(int))]
-[JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
+// [StronglyTypedId(typeof(int))]
+// [JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
 public readonly struct RoleId : IStronglyTypedId<int>, IEquatable<RoleId>
 {
     /// <summary>

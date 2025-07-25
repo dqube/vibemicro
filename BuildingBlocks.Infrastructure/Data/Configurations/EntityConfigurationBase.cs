@@ -45,9 +45,8 @@ public abstract class EntityConfigurationBase<TEntity, TId, TIdValue> : IEntityT
                 v => (TId)Activator.CreateInstance(typeof(TId), v)!)
             .ValueGeneratedNever();
 
-        // Configure version for optimistic concurrency
-        builder.Property(e => e.Version)
-            .IsRowVersion();
+        // Version property not available on base Entity class
+        // Optimistic concurrency can be configured in derived configurations if needed
     }
 
     /// <summary>

@@ -9,7 +9,7 @@ namespace AuthService.Domain.Entities;
 /// <summary>
 /// User entity representing an authenticated user in the system
 /// </summary>
-public class User : AggregateRoot<UserId>, IAuditableEntity
+public class User : GuidAggregateRoot<UserId>, IAuditableEntity
 {
     private readonly List<RoleId> _roleIds = new();
 

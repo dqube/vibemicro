@@ -6,7 +6,7 @@ namespace BuildingBlocks.Domain.Common;
 /// <summary>
 /// Value object representing a phone number
 /// </summary>
-public class PhoneNumber : SingleValueObject<string>
+public record PhoneNumber : SingleValueObject<string>
 {
     private static readonly Regex PhoneRegex = new(
         @"^\+?[1-9]\d{1,14}$",

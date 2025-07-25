@@ -6,7 +6,7 @@ namespace AuthService.Domain.Entities;
 /// <summary>
 /// Role entity representing a user role in the system
 /// </summary>
-public class Role : Entity<RoleId>, IAuditableEntity
+public class Role : IntEntity<RoleId>, IAuditableEntity
 {
     public const int MaxNameLength = 20;
     public const int MaxDescriptionLength = 255;
