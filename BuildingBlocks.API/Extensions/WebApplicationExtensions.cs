@@ -23,6 +23,9 @@ public static class WebApplicationExtensions
         // Use exception handling
         app.UseExceptionHandling();
         
+        // Use correlation ID middleware
+        app.UseCorrelationId();
+        
         // Use request logging
         app.UseRequestLogging();
         
@@ -64,6 +67,17 @@ public static class WebApplicationExtensions
             app.UseMiddleware<GlobalExceptionMiddleware>();
         }
 
+        return app;
+    }
+
+    /// <summary>
+    /// Uses correlation ID middleware
+    /// </summary>
+    /// <param name="app">The web application</param>
+    /// <returns>The web application</returns>
+    public static WebApplication UseCorrelationId(this WebApplication app)
+    {
+        app.UseMiddleware<CorrelationIdMiddleware>();
         return app;
     }
 

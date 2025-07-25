@@ -344,6 +344,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<RequestLoggingOptions>();
         services.AddTransient<GlobalExceptionMiddleware>();
         services.AddTransient<RequestLoggingMiddleware>();
+        services.AddTransient<CorrelationIdMiddleware>();
+
+        // Configure correlation ID options
+        services.Configure<CorrelationIdOptions>(options =>
+        {
+            options.RequestHeaderName = "X-Correlation-ID";
+            options.ResponseHeaderName = "X-Correlation-ID";
+            options.IncludeInResponse = true;
+            options.ValidateCorrelationId = true;
+            options.CorrelationIdGenerator = CorrelationIdGenerator.Guid;
+        });
 
         return services;
     }

@@ -1,13 +1,23 @@
 using BuildingBlocks.Application.Caching;
+using BuildingBlocks.Application.Messaging;
 using BuildingBlocks.Domain.Repository;
 using BuildingBlocks.Infrastructure.Caching;
 using BuildingBlocks.Infrastructure.Data.Context;
 using BuildingBlocks.Infrastructure.Data.Repositories;
 using BuildingBlocks.Infrastructure.Data.UnitOfWork;
+using BuildingBlocks.Infrastructure.Data.Migrations;
+using BuildingBlocks.Infrastructure.Data.Seeding;
+using BuildingBlocks.Infrastructure.Messaging.MessageBus;
+using BuildingBlocks.Infrastructure.Messaging.Serialization;
+using BuildingBlocks.Infrastructure.Messaging.Configuration;
+using BuildingBlocks.Infrastructure.Serialization.Json;
+using BuildingBlocks.Infrastructure.Idempotency;
+using BuildingBlocks.Infrastructure.Security.Encryption;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using StackExchange.Redis;
 
 namespace BuildingBlocks.Infrastructure.Extensions;
 
@@ -108,6 +118,13 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped(typeof(IRepository<,,>), typeof(Repository<,,>));
         services.TryAddScoped(typeof(IReadOnlyRepository<,,>), typeof(ReadOnlyRepository<,,>));
 
+        // Add migration runner
+        services.TryAddScoped<IMigrationRunner, MigrationRunner>();
+
+        // Add DbContext factory
+        services.TryAddScoped<IDbContextFactory>(provider => 
+            new DbContextFactory(() => provider.GetRequiredService<ApplicationDbContext>()));
+
         return services;
     }
 
@@ -127,10 +144,6 @@ public static class ServiceCollectionExtensions
         // Add memory cache
         services.AddMemoryCache();
 
-        // Register cache services
-        services.TryAddScoped<ICacheService, MemoryCacheService>();
-        services.TryAddScoped<BuildingBlocks.Application.Caching.ICacheService, MemoryCacheService>();
-
         // Add distributed cache based on configuration
         var provider = configuration.GetValue<string>("Cache:Provider");
         switch (provider?.ToLowerInvariant())
@@ -143,7 +156,26 @@ public static class ServiceCollectionExtensions
                     {
                         options.Configuration = redisConnectionString;
                     });
+
+                    // Add Redis connection multiplexer
+                    services.AddSingleton<IConnectionMultiplexer>(provider =>
+                        ConnectionMultiplexer.Connect(redisConnectionString));
+
+                    // Register Redis cache service
+                    services.TryAddScoped<ICacheService, RedisCacheService>();
+                    services.TryAddScoped<BuildingBlocks.Application.Caching.ICacheService, RedisCacheService>();
                 }
+                else
+                {
+                    services.TryAddScoped<ICacheService, MemoryCacheService>();
+                    services.TryAddScoped<BuildingBlocks.Application.Caching.ICacheService, MemoryCacheService>();
+                }
+                break;
+
+            case "distributed":
+                services.AddDistributedMemoryCache();
+                services.TryAddScoped<ICacheService, DistributedCacheService>();
+                services.TryAddScoped<BuildingBlocks.Application.Caching.ICacheService, DistributedCacheService>();
                 break;
 
             case "sqlserver":
@@ -156,12 +188,21 @@ public static class ServiceCollectionExtensions
                         options.SchemaName = "dbo";
                         options.TableName = "DistributedCache";
                     });
+                    services.TryAddScoped<ICacheService, DistributedCacheService>();
+                    services.TryAddScoped<BuildingBlocks.Application.Caching.ICacheService, DistributedCacheService>();
+                }
+                else
+                {
+                    services.TryAddScoped<ICacheService, MemoryCacheService>();
+                    services.TryAddScoped<BuildingBlocks.Application.Caching.ICacheService, MemoryCacheService>();
                 }
                 break;
 
             default:
                 // Use memory cache as distributed cache
                 services.AddDistributedMemoryCache();
+                services.TryAddScoped<ICacheService, MemoryCacheService>();
+                services.TryAddScoped<BuildingBlocks.Application.Caching.ICacheService, MemoryCacheService>();
                 break;
         }
 
@@ -176,7 +217,28 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection</returns>
     public static IServiceCollection AddMessaging(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO: Implement messaging services (MessageBus, EventBus, etc.)
+        // Configure message bus options
+        var messageBusConfig = new MessageBusConfiguration();
+        configuration.GetSection("MessageBus").Bind(messageBusConfig);
+        services.TryAddSingleton(messageBusConfig);
+
+        // Add message serializers
+        services.TryAddScoped<IMessageSerializer, JsonMessageSerializer>();
+        services.TryAddScoped<JsonMessageSerializer>();
+        services.TryAddScoped<BinaryMessageSerializer>();
+
+        // Add message bus based on configuration
+        var provider = messageBusConfig.Provider;
+        switch (provider)
+        {
+            case MessageBusProvider.InMemory:
+            default:
+                services.TryAddScoped<IMessageBus, InMemoryMessageBus>();
+                break;
+                
+            // TODO: Add other message bus providers (ServiceBus, RabbitMQ, etc.)
+        }
+
         return services;
     }
 
@@ -284,7 +346,9 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection</returns>
     public static IServiceCollection AddSecurity(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO: Implement security services
+        // Register encryption service if implemented
+        // services.TryAddScoped<IEncryptionService, EncryptionService>();
+
         return services;
     }
 
@@ -320,7 +384,9 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection</returns>
     public static IServiceCollection AddSerialization(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO: Implement serialization services
+        // Add JSON serialization service
+        services.TryAddScoped<IJsonSerializationService, JsonSerializationService>();
+
         return services;
     }
 
@@ -332,7 +398,27 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection</returns>
     public static IServiceCollection AddIdempotency(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO: Implement idempotency services
+        // Register idempotency repository if implemented
+        // services.TryAddScoped<IIdempotencyRepository, IdempotencyRepository>();
+
         return services;
+    }
+
+    /// <summary>
+    /// Creates a simple DbContext factory implementation
+    /// </summary>
+    private class DbContextFactory : IDbContextFactory
+    {
+        private readonly Func<IDbContext> _factory;
+
+        public DbContextFactory(Func<IDbContext> factory)
+        {
+            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+        }
+
+        public IDbContext CreateDbContext()
+        {
+            return _factory();
+        }
     }
 } 

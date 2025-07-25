@@ -1,6 +1,8 @@
 using BuildingBlocks.Application.Behaviors;
 using BuildingBlocks.Application.CQRS.Mediator;
 using BuildingBlocks.Application.Services;
+using BuildingBlocks.Application.Outbox;
+using BuildingBlocks.Application.Inbox;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Reflection;
@@ -25,6 +27,12 @@ public static class ServiceCollectionExtensions
 
         // Add domain event service
         services.TryAddScoped<IDomainEventService, DomainEventService>();
+
+        // Add outbox services
+        services.AddOutboxServices();
+
+        // Add inbox services
+        services.AddInboxServices();
 
         // Add pipeline behaviors
         services.AddPipelineBehaviors();
@@ -95,6 +103,30 @@ public static class ServiceCollectionExtensions
             RegisterApplicationServices(services, assembly);
         }
 
+        return services;
+    }
+
+    /// <summary>
+    /// Adds outbox pattern services
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <returns>The service collection</returns>
+    public static IServiceCollection AddOutboxServices(this IServiceCollection services)
+    {
+        services.TryAddScoped<IOutboxProcessor, OutboxProcessor>();
+        
+        return services;
+    }
+
+    /// <summary>
+    /// Adds inbox pattern services
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <returns>The service collection</returns>
+    public static IServiceCollection AddInboxServices(this IServiceCollection services)
+    {
+        services.TryAddScoped<IInboxProcessor, InboxProcessor>();
+        
         return services;
     }
 
