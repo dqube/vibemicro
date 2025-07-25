@@ -73,7 +73,7 @@
   </ItemGroup>
 
   <!-- Monitoring & Observability -->
-  <ItemGroup Label="Monitoring & Observability">
+  <ItemGroup Label="Observability">
     <PackageVersion Include="OpenTelemetry" Version="1.6.0" />
     <PackageVersion Include="OpenTelemetry.AspNetCore" Version="1.6.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.6.0" />

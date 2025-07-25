@@ -8,63 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Core ASP.NET Core -->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-    <PackageReference Include="Microsoft.AspNetCore.Authorization" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" />
 
-    <!-- OpenAPI/Swagger -->
-    <PackageReference Include="Swashbuckle.AspNetCore" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Filters" />
-    <PackageReference Include="Scalar.AspNetCore" />
-
-    <!-- Validation -->
-    <PackageReference Include="FluentValidation.AspNetCore" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
-
-    <!-- Rate Limiting -->
-    <PackageReference Include="Microsoft.AspNetCore.RateLimiting" />
-    <PackageReference Include="AspNetCoreRateLimit" />
-
-    <!-- Health Checks -->
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" />
-    <PackageReference Include="AspNetCore.HealthChecks.UI" />
-    <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" />
-
-    <!-- Monitoring & Observability -->
-    <PackageReference Include="OpenTelemetry.AspNetCore" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
-
-    <!-- CORS -->
-    <PackageReference Include="Microsoft.AspNetCore.Cors" />
-
-    <!-- Security -->
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
-    <PackageReference Include="Microsoft.AspNetCore.HttpsPolicy" />
-
-    <!-- Serialization -->
-    <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="Newtonsoft.Json" />
-
-    <!-- Utilities -->
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
-
-    <!-- HTTP Client -->
-    <PackageReference Include="Microsoft.Extensions.Http" />
-    <PackageReference Include="Polly.Extensions.Http" />
-
-    <!-- Minimal APIs -->
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../BuildingBlocks.Domain/BuildingBlocks.Domain.csproj" />
