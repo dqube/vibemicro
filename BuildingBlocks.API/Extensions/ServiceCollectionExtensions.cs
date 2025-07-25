@@ -72,21 +72,16 @@ public static class ServiceCollectionExtensions
         // Configure API options
         services.Configure<ApiOptions>(configuration.GetSection("Api"));
         
-        // Add controllers with JSON options
-        services.AddControllers(options =>
-        {
-            // Add custom filters
-            options.Filters.Add<GlobalActionFilter>();
-        })
-        .AddJsonOptions(options =>
-        {
-            options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-            options.JsonSerializerOptions.WriteIndented = false;
-            options.JsonSerializerOptions.AddStronglyTypedIdConverters();
-        });
-
-        // Add API explorer
+        // Add Minimal API services
         services.AddEndpointsApiExplorer();
+
+        // Configure JSON options for strongly typed IDs
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            options.SerializerOptions.WriteIndented = false;
+            options.SerializerOptions.AddStronglyTypedIdConverters();
+        });
 
         // Add custom problem details
         services.AddProblemDetailsMiddleware(options =>
@@ -341,8 +336,8 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection</returns>
     public static IServiceCollection AddApiValidation(this IServiceCollection services)
     {
-        services.AddFluentValidationAutoValidation();
-        services.AddFluentValidationClientsideAdapters();
+        // Add FluentValidation for manual validation in Minimal APIs
+        services.AddValidatorsFromAssemblyContaining<IValidator>();
 
         return services;
     }
@@ -370,30 +365,6 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
-    }
-}
-
-/// <summary>
-/// Placeholder global action filter
-/// </summary>
-public class GlobalActionFilter : IActionFilter
-{
-    /// <summary>
-    /// Called before the action executes
-    /// </summary>
-    /// <param name="context">The action executing context</param>
-    public void OnActionExecuting(ActionExecutingContext context)
-    {
-        // Implement global action logic here
-    }
-
-    /// <summary>
-    /// Called after the action executes
-    /// </summary>
-    /// <param name="context">The action executed context</param>
-    public void OnActionExecuted(ActionExecutedContext context)
-    {
-        // Implement global action logic here
     }
 }
 

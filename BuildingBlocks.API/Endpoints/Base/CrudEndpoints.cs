@@ -3,283 +3,219 @@ using BuildingBlocks.Application.CQRS.Queries;
 using BuildingBlocks.Application.CQRS.Mediator;
 using BuildingBlocks.API.Responses.Base;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.API.Endpoints.Base;
 
 /// <summary>
-/// Base class for CRUD endpoints providing standard REST operations
+/// Extension methods for mapping CRUD endpoints using Minimal APIs
 /// </summary>
-/// <typeparam name="TEntity">The entity type</typeparam>
-/// <typeparam name="TId">The entity identifier type</typeparam>
-/// <typeparam name="TDto">The DTO type</typeparam>
-/// <typeparam name="TCreateDto">The create DTO type</typeparam>
-/// <typeparam name="TUpdateDto">The update DTO type</typeparam>
-public abstract class CrudEndpoints<TEntity, TId, TDto, TCreateDto, TUpdateDto> : EndpointBase
-    where TEntity : class
-    where TId : notnull
-    where TDto : class
-    where TCreateDto : class
-    where TUpdateDto : class
+public static class CrudEndpoints
 {
     /// <summary>
-    /// Initializes a new instance of the CrudEndpoints class
+    /// Maps CRUD endpoints for an entity type
     /// </summary>
-    /// <param name="mediator">The mediator instance</param>
-    /// <param name="logger">The logger instance</param>
-    protected CrudEndpoints(IMediator mediator, ILogger logger) : base(mediator, logger)
+    /// <typeparam name="TEntity">The entity type</typeparam>
+    /// <typeparam name="TId">The entity identifier type</typeparam>
+    /// <typeparam name="TDto">The DTO type</typeparam>
+    /// <typeparam name="TCreateDto">The create DTO type</typeparam>
+    /// <typeparam name="TUpdateDto">The update DTO type</typeparam>
+    /// <param name="endpoints">The endpoint route builder</param>
+    /// <param name="routePrefix">The route prefix (e.g., "api/v1/users")</param>
+    /// <param name="tag">The OpenAPI tag for grouping endpoints</param>
+    /// <returns>The endpoint route builder</returns>
+    public static IEndpointRouteBuilder MapCrudEndpoints<TEntity, TId, TDto, TCreateDto, TUpdateDto>(
+        this IEndpointRouteBuilder endpoints,
+        string routePrefix,
+        string? tag = null)
+        where TEntity : class
+        where TId : notnull
+        where TDto : class
+        where TCreateDto : class
+        where TUpdateDto : class
     {
-    }
-
-    /// <summary>
-    /// Gets an entity by ID
-    /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>The entity or not found</returns>
-    [HttpGet("{id}")]
-    public virtual async Task<ActionResult<ApiResponse<TDto>>> GetByIdAsync(
-        [FromRoute] TId id,
-        CancellationToken cancellationToken = default)
-    {
-        Logger.LogDebug("Getting {EntityType} with ID: {Id}", typeof(TEntity).Name, id);
-
-        var query = CreateGetByIdQuery(id);
-        var result = await Mediator.QueryAsync<IQuery<TDto?>, TDto?>(query, cancellationToken);
-
-        if (result == null)
+        var group = endpoints.MapGroup(routePrefix);
+        
+        if (!string.IsNullOrEmpty(tag))
         {
-            Logger.LogDebug("{EntityType} with ID {Id} not found", typeof(TEntity).Name, id);
-            return NotFound(ApiResponse<TDto>.NotFound($"{typeof(TEntity).Name} with ID {id} not found"));
+            group = group.WithTags(tag);
         }
 
-        return Ok(ApiResponse<TDto>.Success(result));
+        // GET /{id} - Get by ID
+        group.MapGet("/{id}",
+            async (TId id, IMediator mediator, CancellationToken cancellationToken) =>
+            {
+                var query = CreateGetByIdQuery<TEntity, TId, TDto>(id);
+                var result = await mediator.QueryAsync<IQuery<TDto?>, TDto?>(query, cancellationToken);
+                
+                return result != null 
+                    ? Results.Ok(ApiResponse.Success(result))
+                    : Results.NotFound(ApiResponse.NotFound<TDto>($"{typeof(TEntity).Name} with ID {id} not found"));
+            })
+            .WithName($"Get{typeof(TEntity).Name}ById")
+            .WithSummary($"Get {typeof(TEntity).Name} by ID")
+            .Produces<ApiResponse<TDto>>(200)
+            .Produces<ApiResponse<TDto>>(404);
+
+        // GET / - Get all with pagination
+        group.MapGet("/",
+            async ([AsParameters] PaginationQuery pagination, IMediator mediator, CancellationToken cancellationToken) =>
+            {
+                var query = CreateGetAllQuery<TEntity, TDto>(pagination.PageNumber, pagination.PageSize, pagination.SortBy, pagination.SortDescending);
+                var result = await mediator.QueryAsync<IQuery<PagedResult<TDto>>, PagedResult<TDto>>(query, cancellationToken);
+                
+                return Results.Ok(PagedResponse.Success(result.Items, result.TotalCount, result.PageNumber, result.PageSize));
+            })
+            .WithName($"Get{typeof(TEntity).Name}List")
+            .WithSummary($"Get paginated list of {typeof(TEntity).Name}")
+            .Produces<PagedResponse<TDto>>(200);
+
+        // POST / - Create
+        group.MapPost("/",
+            async (TCreateDto createDto, IMediator mediator, CancellationToken cancellationToken) =>
+            {
+                var command = CreateCommand<TEntity, TId, TDto, TCreateDto>(createDto);
+                var result = await mediator.CommandAsync<ICommand<TDto>, TDto>(command, cancellationToken);
+                
+                return Results.Created($"/{routePrefix}/{GetEntityId(result)}", ApiResponse.Success(result));
+            })
+            .WithName($"Create{typeof(TEntity).Name}")
+            .WithSummary($"Create new {typeof(TEntity).Name}")
+            .Produces<ApiResponse<TDto>>(201)
+            .Produces<ApiResponse<TDto>>(400);
+
+        // PUT /{id} - Update
+        group.MapPut("/{id}",
+            async (TId id, TUpdateDto updateDto, IMediator mediator, CancellationToken cancellationToken) =>
+            {
+                var command = CreateUpdateCommand<TEntity, TId, TDto, TUpdateDto>(id, updateDto);
+                var result = await mediator.CommandAsync<ICommand<TDto>, TDto>(command, cancellationToken);
+                
+                return Results.Ok(ApiResponse.Success(result));
+            })
+            .WithName($"Update{typeof(TEntity).Name}")
+            .WithSummary($"Update {typeof(TEntity).Name}")
+            .Produces<ApiResponse<TDto>>(200)
+            .Produces<ApiResponse<TDto>>(400)
+            .Produces<ApiResponse<TDto>>(404);
+
+        // DELETE /{id} - Delete
+        group.MapDelete("/{id}",
+            async (TId id, IMediator mediator, CancellationToken cancellationToken) =>
+            {
+                var command = CreateDeleteCommand<TEntity, TId>(id);
+                var result = await mediator.CommandAsync<ICommand<bool>, bool>(command, cancellationToken);
+                
+                return result 
+                    ? Results.NoContent()
+                    : Results.NotFound(ApiResponse.NotFound<object>($"{typeof(TEntity).Name} with ID {id} not found"));
+            })
+            .WithName($"Delete{typeof(TEntity).Name}")
+            .WithSummary($"Delete {typeof(TEntity).Name}")
+            .Produces(204)
+            .Produces<ApiResponse<object>>(404);
+
+        return endpoints;
     }
 
     /// <summary>
-    /// Gets all entities with optional filtering and pagination
+    /// Creates a get by ID query - should be implemented by the calling code
     /// </summary>
-    /// <param name="pageNumber">The page number (1-based)</param>
-    /// <param name="pageSize">The page size</param>
-    /// <param name="search">Optional search term</param>
-    /// <param name="sortBy">Optional sort field</param>
-    /// <param name="sortOrder">Optional sort order (asc/desc)</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>A paged collection of entities</returns>
-    [HttpGet]
-    public virtual async Task<ActionResult<ApiResponse<PagedResult<TDto>>>> GetAllAsync(
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] string? search = null,
-        [FromQuery] string? sortBy = null,
-        [FromQuery] string? sortOrder = null,
-        CancellationToken cancellationToken = default)
+    private static IQuery<TDto?> CreateGetByIdQuery<TEntity, TId, TDto>(TId id)
+        where TEntity : class
+        where TId : notnull
+        where TDto : class
     {
-        Logger.LogDebug("Getting {EntityType} list - Page: {PageNumber}, Size: {PageSize}, Search: {Search}",
-            typeof(TEntity).Name, pageNumber, pageSize, search);
-
-        var query = CreateGetAllQuery(pageNumber, pageSize, search, sortBy, sortOrder);
-        var result = await Mediator.QueryAsync<IQuery<PagedResult<TDto>>, PagedResult<TDto>>(query, cancellationToken);
-
-        return Ok(ApiResponse<PagedResult<TDto>>.Success(result));
+        // This is a placeholder - the actual implementation should be provided
+        // via dependency injection or factory pattern
+        throw new NotImplementedException($"CreateGetByIdQuery for {typeof(TEntity).Name} must be implemented");
     }
 
     /// <summary>
-    /// Creates a new entity
+    /// Creates a get all query - should be implemented by the calling code
     /// </summary>
-    /// <param name="createDto">The entity creation data</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>The created entity</returns>
-    [HttpPost]
-    public virtual async Task<ActionResult<ApiResponse<TDto>>> CreateAsync(
-        [FromBody] TCreateDto createDto,
-        CancellationToken cancellationToken = default)
+    private static IQuery<PagedResult<TDto>> CreateGetAllQuery<TEntity, TDto>(
+        int pageNumber, int pageSize, string? sortBy, bool sortDescending)
+        where TEntity : class
+        where TDto : class
     {
-        Logger.LogDebug("Creating new {EntityType}", typeof(TEntity).Name);
-
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ApiResponse<TDto>.BadRequest("Invalid model state", GetModelStateErrors()));
-        }
-
-        var command = CreateCreateCommand(createDto);
-        var result = await Mediator.SendAsync<ICommand<TDto>, TDto>(command, cancellationToken);
-
-        Logger.LogInformation("Created {EntityType} successfully", typeof(TEntity).Name);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = GetEntityId(result) }, ApiResponse<TDto>.Success(result));
+        // This is a placeholder - the actual implementation should be provided
+        // via dependency injection or factory pattern
+        throw new NotImplementedException($"CreateGetAllQuery for {typeof(TEntity).Name} must be implemented");
     }
 
     /// <summary>
-    /// Updates an existing entity
+    /// Creates a create command - should be implemented by the calling code
     /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <param name="updateDto">The entity update data</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>The updated entity</returns>
-    [HttpPut("{id}")]
-    public virtual async Task<ActionResult<ApiResponse<TDto>>> UpdateAsync(
-        [FromRoute] TId id,
-        [FromBody] TUpdateDto updateDto,
-        CancellationToken cancellationToken = default)
+    private static ICommand<TDto> CreateCommand<TEntity, TId, TDto, TCreateDto>(TCreateDto createDto)
+        where TEntity : class
+        where TId : notnull
+        where TDto : class
+        where TCreateDto : class
     {
-        Logger.LogDebug("Updating {EntityType} with ID: {Id}", typeof(TEntity).Name, id);
-
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ApiResponse<TDto>.BadRequest("Invalid model state", GetModelStateErrors()));
-        }
-
-        var command = CreateUpdateCommand(id, updateDto);
-        var result = await Mediator.SendAsync<ICommand<TDto>, TDto>(command, cancellationToken);
-
-        Logger.LogInformation("Updated {EntityType} with ID {Id} successfully", typeof(TEntity).Name, id);
-        return Ok(ApiResponse<TDto>.Success(result));
+        // This is a placeholder - the actual implementation should be provided
+        // via dependency injection or factory pattern
+        throw new NotImplementedException($"CreateCommand for {typeof(TEntity).Name} must be implemented");
     }
 
     /// <summary>
-    /// Partially updates an existing entity
+    /// Creates an update command - should be implemented by the calling code
     /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <param name="patchDto">The partial update data</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>The updated entity</returns>
-    [HttpPatch("{id}")]
-    public virtual async Task<ActionResult<ApiResponse<TDto>>> PatchAsync(
-        [FromRoute] TId id,
-        [FromBody] object patchDto,
-        CancellationToken cancellationToken = default)
+    private static ICommand<TDto> CreateUpdateCommand<TEntity, TId, TDto, TUpdateDto>(TId id, TUpdateDto updateDto)
+        where TEntity : class
+        where TId : notnull
+        where TDto : class
+        where TUpdateDto : class
     {
-        Logger.LogDebug("Patching {EntityType} with ID: {Id}", typeof(TEntity).Name, id);
-
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ApiResponse<TDto>.BadRequest("Invalid model state", GetModelStateErrors()));
-        }
-
-        var command = CreatePatchCommand(id, patchDto);
-        var result = await Mediator.SendAsync<ICommand<TDto>, TDto>(command, cancellationToken);
-
-        Logger.LogInformation("Patched {EntityType} with ID {Id} successfully", typeof(TEntity).Name, id);
-        return Ok(ApiResponse<TDto>.Success(result));
+        // This is a placeholder - the actual implementation should be provided
+        // via dependency injection or factory pattern
+        throw new NotImplementedException($"CreateUpdateCommand for {typeof(TEntity).Name} must be implemented");
     }
 
     /// <summary>
-    /// Deletes an entity by ID
+    /// Creates a delete command - should be implemented by the calling code
     /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>No content on success</returns>
-    [HttpDelete("{id}")]
-    public virtual async Task<ActionResult<ApiResponse<object>>> DeleteAsync(
-        [FromRoute] TId id,
-        CancellationToken cancellationToken = default)
+    private static ICommand<bool> CreateDeleteCommand<TEntity, TId>(TId id)
+        where TEntity : class
+        where TId : notnull
     {
-        Logger.LogDebug("Deleting {EntityType} with ID: {Id}", typeof(TEntity).Name, id);
-
-        var command = CreateDeleteCommand(id);
-        await Mediator.SendAsync(command, cancellationToken);
-
-        Logger.LogInformation("Deleted {EntityType} with ID {Id} successfully", typeof(TEntity).Name, id);
-        return NoContent();
+        // This is a placeholder - the actual implementation should be provided
+        // via dependency injection or factory pattern
+        throw new NotImplementedException($"CreateDeleteCommand for {typeof(TEntity).Name} must be implemented");
     }
 
     /// <summary>
-    /// Creates a query for getting an entity by ID
+    /// Gets the entity ID from a DTO - should be implemented by the calling code
     /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <returns>The get by ID query</returns>
-    protected abstract IQuery<TDto?> CreateGetByIdQuery(TId id);
-
-    /// <summary>
-    /// Creates a query for getting all entities
-    /// </summary>
-    /// <param name="pageNumber">The page number</param>
-    /// <param name="pageSize">The page size</param>
-    /// <param name="search">The search term</param>
-    /// <param name="sortBy">The sort field</param>
-    /// <param name="sortOrder">The sort order</param>
-    /// <returns>The get all query</returns>
-    protected abstract IQuery<PagedResult<TDto>> CreateGetAllQuery(int pageNumber, int pageSize, string? search, string? sortBy, string? sortOrder);
-
-    /// <summary>
-    /// Creates a command for creating an entity
-    /// </summary>
-    /// <param name="createDto">The creation data</param>
-    /// <returns>The create command</returns>
-    protected abstract ICommand<TDto> CreateCreateCommand(TCreateDto createDto);
-
-    /// <summary>
-    /// Creates a command for updating an entity
-    /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <param name="updateDto">The update data</param>
-    /// <returns>The update command</returns>
-    protected abstract ICommand<TDto> CreateUpdateCommand(TId id, TUpdateDto updateDto);
-
-    /// <summary>
-    /// Creates a command for partially updating an entity
-    /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <param name="patchDto">The patch data</param>
-    /// <returns>The patch command</returns>
-    protected virtual ICommand<TDto> CreatePatchCommand(TId id, object patchDto)
+    private static object GetEntityId<TDto>(TDto dto) where TDto : class
     {
-        throw new NotSupportedException("Patch operations are not supported by default. Override this method to implement patch functionality.");
+        // This is a placeholder - the actual implementation should extract the ID
+        var idProperty = typeof(TDto).GetProperty("Id");
+        return idProperty?.GetValue(dto) ?? string.Empty;
     }
-
-    /// <summary>
-    /// Creates a command for deleting an entity
-    /// </summary>
-    /// <param name="id">The entity identifier</param>
-    /// <returns>The delete command</returns>
-    protected abstract ICommand CreateDeleteCommand(TId id);
-
-    /// <summary>
-    /// Gets the entity identifier from a DTO
-    /// </summary>
-    /// <param name="dto">The DTO</param>
-    /// <returns>The entity identifier</returns>
-    protected abstract TId GetEntityId(TDto dto);
 }
 
 /// <summary>
-/// Represents a paged result for API responses
+/// Pagination query parameters for Minimal API endpoints
 /// </summary>
-/// <typeparam name="T">The item type</typeparam>
-public class PagedResult<T>
+public class PaginationQuery
 {
     /// <summary>
-    /// Gets or sets the items in the current page
+    /// Gets or sets the page number
     /// </summary>
-    public IEnumerable<T> Items { get; set; } = Enumerable.Empty<T>();
-
-    /// <summary>
-    /// Gets or sets the current page number (1-based)
-    /// </summary>
-    public int PageNumber { get; set; }
+    public int PageNumber { get; set; } = 1;
 
     /// <summary>
     /// Gets or sets the page size
     /// </summary>
-    public int PageSize { get; set; }
+    public int PageSize { get; set; } = 10;
 
     /// <summary>
-    /// Gets or sets the total number of items
+    /// Gets or sets the sort field
     /// </summary>
-    public long TotalCount { get; set; }
+    public string? SortBy { get; set; }
 
     /// <summary>
-    /// Gets the total number of pages
+    /// Gets or sets whether to sort in descending order
     /// </summary>
-    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
-
-    /// <summary>
-    /// Gets whether there is a previous page
-    /// </summary>
-    public bool HasPrevious => PageNumber > 1;
-
-    /// <summary>
-    /// Gets whether there is a next page
-    /// </summary>
-    public bool HasNext => PageNumber < TotalPages;
+    public bool SortDescending { get; set; } = false;
 } 

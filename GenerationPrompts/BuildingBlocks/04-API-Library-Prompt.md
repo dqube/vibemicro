@@ -1,634 +1,302 @@
 # BuildingBlocks.API Library Generation Prompt
 
-## Overview
-Generate a comprehensive API layer library that provides foundational building blocks for modern ASP.NET Core microservices. This library implements clean architecture principles, minimal APIs, comprehensive middleware, and modern development patterns.
+## Context
+Generate a comprehensive .NET 8.0 API layer library for the BuildingBlocks architecture using **Minimal APIs** (not controllers). This library provides web API infrastructure, endpoints, and HTTP concerns following modern ASP.NET Core patterns.
 
-## Project Configuration
+## Project Structure
 
-### Target Framework & Features
-- **.NET 8.0** (`net8.0`)
-- **Project SDK**: `Microsoft.NET.Sdk.Web`
-- **Implicit Usings**: Enabled
-- **Nullable Reference Types**: Enabled
-- **Treat Warnings as Errors**: Enabled
-- **Generate Documentation File**: Enabled
+```
+BuildingBlocks.API/
+├── BuildingBlocks.API.csproj
+├── Endpoints/
+│   └── Base/
+│       ├── CrudEndpoints.cs      # Minimal API CRUD extension methods
+│       └── QueryEndpoints.cs     # Minimal API query extension methods
+├── Extensions/
+│   ├── EndpointExtensions.cs     # Common endpoint mapping patterns
+│   ├── EndpointRouteBuilderExtensions.cs
+│   ├── ServiceCollectionExtensions.cs
+│   └── WebApplicationExtensions.cs
+├── Middleware/
+│   ├── ErrorHandling/
+│   │   ├── GlobalExceptionMiddleware.cs
+│   │   ├── ProblemDetailsMiddleware.cs    # Custom RFC 7807 implementation
+│   │   ├── ErrorResponse.cs
+│   │   └── ProblemDetailsFactory.cs
+│   └── Logging/
+│       ├── RequestLoggingMiddleware.cs
+│       └── CorrelationIdMiddleware.cs
+├── Responses/
+│   └── Base/
+│       ├── ApiResponse.cs
+│       ├── PagedResponse.cs
+│       └── ApiResponseBuilder.cs
+├── Configuration/
+│   └── Options/
+│       └── ApiOptions.cs
+└── Utilities/
+    └── ApiConstants.cs
+```
 
-### Package Dependencies
+## Key Requirements
+
+### 1. Minimal APIs Focus
+- **NO Controllers**: Use Minimal APIs exclusively
+- Extension methods for mapping endpoints
+- Route grouping and organization
+- Parameter binding from routes, query strings, and JSON bodies
+- Strongly typed ID support in route parameters
+
+### 2. CRUD Endpoint Extensions
+```csharp
+// Extension method approach
+public static class CrudEndpoints
+{
+    public static IEndpointRouteBuilder MapCrudEndpoints<TEntity, TId, TDto, TCreateDto, TUpdateDto>(
+        this IEndpointRouteBuilder endpoints,
+        string routePrefix,
+        string? tag = null)
+    {
+        var group = endpoints.MapGroup(routePrefix);
+        
+        // GET /{id} - Get by ID
+        group.MapGet("/{id}", async (TId id, IMediator mediator, CancellationToken ct) => 
+        {
+            // Implementation
+        });
+        
+        // GET / - Get all with pagination
+        group.MapGet("/", async ([AsParameters] PaginationQuery pagination, IMediator mediator, CancellationToken ct) => 
+        {
+            // Implementation
+        });
+        
+        // POST / - Create
+        // PUT /{id} - Update  
+        // DELETE /{id} - Delete
+        
+        return endpoints;
+    }
+}
+```
+
+### 3. Query Endpoint Extensions
+```csharp
+public static class QueryEndpoints
+{
+    public static IEndpointRouteBuilder MapQuery<TQuery, TResult>(
+        this IEndpointRouteBuilder endpoints,
+        string pattern,
+        Func<HttpContext, TQuery> createQuery,
+        string method = "GET")
+    {
+        // Implementation
+    }
+    
+    public static IEndpointRouteBuilder MapPagedQuery<TQuery, TResult>(...)
+    public static IEndpointRouteBuilder MapSearchEndpoint<TQuery, TResult, TFilter>(...)
+}
+```
+
+### 4. Strongly Typed ID Support
+- Automatic conversion in route parameters: `/users/{userId}` where `UserId` is strongly typed
+- JSON serialization/deserialization support
+- Query string parameter binding
+
+### 5. Custom Problem Details Middleware
+- **NO Hellang.Middleware.ProblemDetails dependency**
+- Custom RFC 7807 compliant implementation
+- Exception to status code mapping
+- Development vs production error details
+- Correlation ID support
+
+### 6. Service Registration
+```csharp
+public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration configuration)
+{
+    // Add Minimal API services (NO AddControllers)
+    services.AddEndpointsApiExplorer();
+    
+    // Add custom Problem Details
+    services.AddProblemDetailsMiddleware(options => 
+    {
+        options.MapStandardExceptions();
+    });
+    
+    // Configure JSON for strongly typed IDs
+    services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.AddStronglyTypedIdConverters();
+    });
+    
+    // Other services...
+}
+```
+
+### 7. Pipeline Configuration
+```csharp
+public static IApplicationBuilder UseApi(this IApplicationBuilder app, IWebHostEnvironment environment)
+{
+    // Problem Details middleware
+    app.UseProblemDetailsMiddleware();
+    
+    // Other middleware...
+    
+    // NO MapControllers - endpoints mapped by consuming applications
+    app.UseEndpoints(endpoints =>
+    {
+        endpoints.MapHealthChecks("/health");
+        // Consuming apps will add: endpoints.MapUserEndpoints();
+    });
+}
+```
+
+## Package References
+
 ```xml
-<!-- Core ASP.NET Core -->
-<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-<PackageReference Include="Microsoft.AspNetCore.Authorization" />
-<PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning" />
-<PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" />
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
 
-<!-- OpenAPI/Swagger -->
-<PackageReference Include="Swashbuckle.AspNetCore" />
-<PackageReference Include="Swashbuckle.AspNetCore.Annotations" />
-<PackageReference Include="Swashbuckle.AspNetCore.Filters" />
-<PackageReference Include="Scalar.AspNetCore" />
+  <ItemGroup>
+    <!-- Core ASP.NET Core -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" />
 
-<!-- Validation -->
-<PackageReference Include="FluentValidation.AspNetCore" />
-<PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <!-- OpenAPI/Swagger -->
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Filters" />
+    <PackageReference Include="Scalar.AspNetCore" />
 
-<!-- Rate Limiting -->
-<PackageReference Include="Microsoft.AspNetCore.RateLimiting" />
-<PackageReference Include="AspNetCoreRateLimit" />
+    <!-- Validation -->
+    <PackageReference Include="FluentValidation.AspNetCore" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
 
-<!-- Health Checks -->
-<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
-<PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" />
-<PackageReference Include="AspNetCore.HealthChecks.UI" />
-<PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" />
+    <!-- Rate Limiting -->
+    <PackageReference Include="Microsoft.AspNetCore.RateLimiting" />
+    <PackageReference Include="AspNetCoreRateLimit" />
 
-<!-- Monitoring & Observability -->
-<PackageReference Include="OpenTelemetry.AspNetCore" />
-<PackageReference Include="OpenTelemetry.Extensions.Hosting" />
-<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <!-- Health Checks -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" />
 
-<!-- Security & CORS -->
-<PackageReference Include="Microsoft.AspNetCore.Cors" />
-<PackageReference Include="Microsoft.AspNetCore.DataProtection" />
-<PackageReference Include="Microsoft.AspNetCore.HttpsPolicy" />
+    <!-- Monitoring & Observability -->
+    <PackageReference Include="OpenTelemetry.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
 
-<!-- Problem Details -->
+    <!-- CORS -->
+    <PackageReference Include="Microsoft.AspNetCore.Cors" />
 
-<!-- HTTP Client -->
-<PackageReference Include="Microsoft.Extensions.Http" />
-<PackageReference Include="Polly.Extensions.Http" />
+    <!-- Security -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
+    <PackageReference Include="Microsoft.AspNetCore.HttpsPolicy" />
 
-<!-- Minimal APIs -->
-<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" />
+    <!-- Serialization -->
+    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="Newtonsoft.Json" />
+
+    <!-- Utilities -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+
+    <!-- HTTP Client -->
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Polly.Extensions.Http" />
+
+    <!-- Minimal APIs -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../BuildingBlocks.Domain/BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="../BuildingBlocks.Application/BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="../BuildingBlocks.Infrastructure/BuildingBlocks.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
 ```
 
-### Project References
-```xml
-<ProjectReference Include="../BuildingBlocks.Domain/BuildingBlocks.Domain.csproj" />
-<ProjectReference Include="../BuildingBlocks.Application/BuildingBlocks.Application.csproj" />
-<ProjectReference Include="../BuildingBlocks.Infrastructure/BuildingBlocks.Infrastructure.csproj" />
-```
+## Key Features
 
-## Architecture & Patterns
+### 1. Minimal API Patterns
+- Route grouping with `MapGroup()`
+- Extension methods for common patterns
+- Parameter binding with `[AsParameters]`
+- OpenAPI integration with `WithTags()`, `WithSummary()`, `Produces<>()`
 
-### Core API Concepts
-1. **Minimal APIs**: Fast, lightweight endpoint definitions
-2. **Clean Architecture**: Clear separation of concerns
-3. **CQRS Integration**: Command/Query segregation through MediatR
-4. **Standardized Responses**: Consistent API response format
-5. **Comprehensive Middleware**: Error handling, logging, authentication
-6. **Configuration-Driven**: Options pattern for all settings
-7. **Observability**: Health checks, metrics, tracing
+### 2. Strongly Typed ID Integration
+- Automatic route parameter conversion
+- JSON serialization/deserialization
+- Query string parameter binding
 
-### Access Modifier Strategy
-- **Public**: Core abstractions, configuration options, response models
-- **Internal**: Implementation details, extension methods
+### 3. Standardized Responses
+- `ApiResponse<T>` for single items
+- `PagedResponse<T>` for paginated results
+- Consistent error responses via Problem Details
 
-## Folder Structure & Components
+### 4. Error Handling
+- Custom Problem Details middleware (no external dependencies)
+- Exception to HTTP status mapping
+- Correlation ID tracking
+- Development vs production error details
 
-### `/Configuration` - API Configuration
-```
-Configuration/
-└── Options/
-    ├── ApiOptions.cs              # Core API settings
-    ├── AuthenticationOptions.cs   # JWT/Auth configuration
-    ├── AuthorizationOptions.cs    # Authorization policies
-    ├── CorsOptions.cs             # CORS configuration
-    ├── RateLimitingOptions.cs     # Rate limiting settings
-    ├── SwaggerOptions.cs          # OpenAPI/Swagger settings
-    └── HealthCheckOptions.cs      # Health check configuration
-```
+### 5. OpenAPI/Swagger Integration
+- Automatic documentation generation
+- Type-safe endpoint definitions
+- Version support
 
-**ApiOptions.cs** - Core API Configuration:
+## Usage Pattern
+
 ```csharp
-public class ApiOptions
-{
-    public const string SectionName = "Api";
-    
-    public string Title { get; set; } = "BuildingBlocks API";
-    public string Version { get; set; } = "1.0";
-    public string Description { get; set; } = "A comprehensive API built with BuildingBlocks";
-    public bool EnableDetailedErrors { get; set; } = false;
-    public bool EnableRequestLogging { get; set; } = true;
-    public bool EnableSwaggerInProduction { get; set; } = false;
-    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    public long MaxRequestBodySize { get; set; } = 1024 * 1024 * 10; // 10MB
-}
-```
-
-### `/Responses` - Standardized API Responses
-```
-Responses/
-└── Base/
-    ├── ApiResponse.cs         # Base response without data
-    ├── ApiResponse{T}.cs      # Generic response with data
-    ├── PagedApiResponse.cs    # Paginated response
-    ├── ErrorResponse.cs       # Error-specific response
-    └── ValidationResponse.cs  # Validation error response
-```
-
-**ApiResponse.cs** - Standard Response Format:
-```csharp
-public class ApiResponse
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-    
-    [JsonPropertyName("message")]
-    public string? Message { get; set; }
-    
-    [JsonPropertyName("errors")]
-    public Dictionary<string, string[]>? Errors { get; set; }
-    
-    [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-    
-    [JsonPropertyName("traceId")]
-    public string? TraceId { get; set; }
-    
-    // Factory methods for creating responses
-    public static ApiResponse Success(string? message = null);
-    public static ApiResponse Error(string message, Dictionary<string, string[]>? errors = null);
-    public static ApiResponse ValidationError(Dictionary<string, string[]> errors);
-}
-
-public class ApiResponse<T> : ApiResponse
-{
-    [JsonPropertyName("data")]
-    public T? Data { get; set; }
-    
-    // Typed factory methods
-    public static ApiResponse<T> Success(T data, string? message = null);
-    public static ApiResponse<T> Error(string message, Dictionary<string, string[]>? errors = null);
-}
-```
-
-### `/Endpoints` - Endpoint Base Classes
-```
-Endpoints/
-└── Base/
-    ├── EndpointBase.cs           # Base endpoint class
-    ├── CommandEndpointBase.cs    # Command-specific endpoint
-    ├── QueryEndpointBase.cs      # Query-specific endpoint
-    └── IEndpoint.cs              # Endpoint interface
-```
-
-**EndpointBase.cs** - Base Endpoint Implementation:
-```csharp
-public abstract class EndpointBase
-{
-    protected IMediator Mediator { get; }
-    protected ILogger Logger { get; }
-    
-    protected EndpointBase(IMediator mediator, ILogger logger)
-    {
-        Mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
-        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-    
-    // Response helper methods
-    protected static ApiResponse<T> Success<T>(T data, string? message = null);
-    protected static ApiResponse Success(string? message = null);
-    protected static ApiResponse<T> Error<T>(string message, Dictionary<string, string[]>? errors = null);
-    protected static ApiResponse Error(string message, Dictionary<string, string[]>? errors = null);
-    
-    // Async response helpers
-    protected async Task<IResult> OkAsync<T>(Task<T> dataTask, string? message = null);
-    protected async Task<IResult> CreatedAsync<T>(Task<T> dataTask, string location, string? message = null);
-    protected async Task<IResult> NoContentAsync(Task task);
-    
-    // Error response helpers
-    protected IResult BadRequest(string message, Dictionary<string, string[]>? errors = null);
-    protected IResult NotFound(string message = "Resource not found");
-    protected IResult Conflict(string message, Dictionary<string, string[]>? errors = null);
-    protected IResult Unauthorized(string message = "Unauthorized access");
-    protected IResult Forbidden(string message = "Access denied");
-}
-```
-
-### `/Middleware` - Request Processing Pipeline
-```
-Middleware/
-├── ErrorHandling/
-│   ├── GlobalExceptionMiddleware.cs      # Global exception handling
-│   ├── ProblemDetailsMiddleware.cs       # RFC 7807 problem details
-│   └── ValidationExceptionMiddleware.cs  # Validation error handling
-├── Logging/
-│   ├── RequestLoggingMiddleware.cs       # Structured request logging
-│   ├── CorrelationMiddleware.cs          # Correlation ID handling
-│   └── PerformanceMiddleware.cs          # Performance monitoring
-├── Security/
-│   ├── ApiKeyMiddleware.cs               # API key authentication
-│   ├── RateLimitingMiddleware.cs         # Rate limiting
-│   └── SecurityHeadersMiddleware.cs      # Security headers
-└── Caching/
-    ├── ResponseCachingMiddleware.cs      # HTTP response caching
-    └── ETagMiddleware.cs                 # ETag handling
-```
-
-**GlobalExceptionMiddleware.cs** - Exception Handling:
-```csharp
-public class GlobalExceptionMiddleware
-{
-    private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
-    private readonly ApiOptions _options;
-    
-    public async Task InvokeAsync(HttpContext context)
-    {
-        try
-        {
-            await _next(context);
-        }
-        catch (Exception ex)
-        {
-            await HandleExceptionAsync(context, ex);
-        }
-    }
-    
-    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
-    {
-        var response = exception switch
-        {
-            ValidationException validationEx => CreateValidationErrorResponse(validationEx),
-            BusinessRuleValidationException businessEx => CreateBusinessRuleErrorResponse(businessEx),
-            DomainException domainEx => CreateDomainErrorResponse(domainEx),
-            UnauthorizedAccessException => CreateUnauthorizedResponse(),
-            ArgumentException argumentEx => CreateBadRequestResponse(argumentEx),
-            _ => CreateInternalServerErrorResponse(exception)
-        };
-        
-        context.Response.StatusCode = GetStatusCode(exception);
-        context.Response.ContentType = "application/json";
-        
-        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
-    }
-}
-```
-
-### `/Extensions` - Service Configuration
-```
-Extensions/
-├── ServiceCollectionExtensions.cs     # DI container configuration
-├── WebApplicationExtensions.cs        # Application pipeline setup
-└── EndpointRouteBuilderExtensions.cs  # Endpoint routing extensions
-```
-
-**ServiceCollectionExtensions.cs** - Service Registration:
-```csharp
-public static class ServiceCollectionExtensions
-{
-    public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration configuration)
-    {
-        services.AddApiCore(configuration)
-               .AddApiAuthentication(configuration)
-               .AddApiAuthorization(configuration)
-               .AddApiVersioning(configuration)
-               .AddOpenApi(configuration)
-               .AddApiCors(configuration)
-               .AddApiRateLimiting(configuration)
-               .AddApiHealthChecks(configuration)
-               .AddApiObservability(configuration);
-        
-        return services;
-    }
-    
-    public static IServiceCollection AddApiCore(this IServiceCollection services, IConfiguration configuration)
-    {
-        // Configure API options
-        services.Configure<ApiOptions>(configuration.GetSection(ApiOptions.SectionName));
-        
-        // Add controllers and minimal APIs
-        services.AddControllers()
-               .AddJsonOptions(options => ConfigureJsonOptions(options.JsonSerializerOptions))
-               .AddFluentValidation();
-        
-        // Add problem details
-        services.AddProblemDetails();
-        
-        // Add HTTP context accessor
-        services.AddHttpContextAccessor();
-        
-        return services;
-    }
-    
-    // Additional extension methods for specific concerns
-    public static IServiceCollection AddApiAuthentication(this IServiceCollection services, IConfiguration configuration);
-    public static IServiceCollection AddApiAuthorization(this IServiceCollection services, IConfiguration configuration);
-    public static IServiceCollection AddApiVersioning(this IServiceCollection services, IConfiguration configuration);
-    public static IServiceCollection AddOpenApi(this IServiceCollection services, IConfiguration configuration);
-    public static IServiceCollection AddApiCors(this IServiceCollection services, IConfiguration configuration);
-    public static IServiceCollection AddApiRateLimiting(this IServiceCollection services, IConfiguration configuration);
-    public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration configuration);
-    public static IServiceCollection AddApiObservability(this IServiceCollection services, IConfiguration configuration);
-}
-```
-
-**WebApplicationExtensions.cs** - Application Pipeline:
-```csharp
-public static class WebApplicationExtensions
-{
-    public static WebApplication ConfigureApi(this WebApplication app)
-    {
-        app.UseApiSecurity()
-           .UseApiMiddleware()
-           .UseApiRouting()
-           .UseApiDocumentation()
-           .UseApiHealthChecks();
-        
-        return app;
-    }
-    
-    public static WebApplication UseApiSecurity(this WebApplication app)
-    {
-        app.UseHttpsRedirection();
-        app.UseSecurityHeaders();
-        app.UseCors();
-        app.UseAuthentication();
-        app.UseAuthorization();
-        app.UseRateLimiter();
-        
-        return app;
-    }
-    
-    public static WebApplication UseApiMiddleware(this WebApplication app)
-    {
-        app.UseGlobalExceptionHandling();
-        app.UseRequestLogging();
-        app.UseCorrelationId();
-        app.UsePerformanceMonitoring();
-        
-        return app;
-    }
-    
-    public static WebApplication UseApiRouting(this WebApplication app)
-    {
-        app.MapControllers();
-        app.MapApiEndpoints();
-        
-        return app;
-    }
-    
-    public static WebApplication UseApiDocumentation(this WebApplication app)
-    {
-        if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Api:EnableSwaggerInProduction"))
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-            app.MapScalarApiReference();
-        }
-        
-        return app;
-    }
-    
-    public static WebApplication UseApiHealthChecks(this WebApplication app)
-    {
-        app.MapHealthChecks("/health");
-        app.MapHealthChecks("/health/ready");
-        app.MapHealthChecks("/health/live");
-        
-        return app;
-    }
-}
-```
-
-### `/Attributes` - Custom Attributes
-```
-Attributes/
-├── ApiKeyAttribute.cs          # API key authorization
-├── RateLimitAttribute.cs       # Rate limiting decoration
-├── CacheAttribute.cs           # Response caching
-└── ValidateModelAttribute.cs   # Model validation
-```
-
-### `/Filters` - Action Filters
-```
-Filters/
-├── ValidationFilter.cs         # Automatic validation
-├── CacheFilter.cs             # Response caching filter
-├── AuditFilter.cs             # Request auditing
-└── PerformanceFilter.cs       # Performance monitoring
-```
-
-### `/Validators` - Request Validation
-```
-Validators/
-├── BaseValidator.cs           # Base validation class
-├── PaginationValidator.cs     # Pagination parameter validation
-└── QueryParameterValidator.cs # Query parameter validation
-```
-
-### `/Services` - API-Specific Services
-```
-Services/
-├── IApiContext.cs             # API context interface
-├── ApiContext.cs              # API context implementation
-├── IResponseCache.cs          # Response caching interface
-├── ResponseCache.cs           # Response caching implementation
-├── IApiKeyService.cs          # API key service interface
-└── ApiKeyService.cs           # API key service implementation
-```
-
-## Key Implementation Patterns
-
-### 1. Minimal API Endpoints
-```csharp
-public static class UserEndpoints
-{
-    public static void MapUserEndpoints(this IEndpointRouteBuilder app)
-    {
-        var group = app.MapGroup("/api/v1/users")
-                      .WithTags("Users")
-                      .WithOpenApi();
-        
-        group.MapGet("/", GetUsers)
-             .WithName("GetUsers")
-             .WithSummary("Get all users")
-             .Produces<ApiResponse<PagedResult<UserDto>>>();
-        
-        group.MapGet("/{id:guid}", GetUser)
-             .WithName("GetUser")
-             .WithSummary("Get user by ID")
-             .Produces<ApiResponse<UserDto>>()
-             .Produces(404);
-        
-        group.MapPost("/", CreateUser)
-             .WithName("CreateUser")
-             .WithSummary("Create new user")
-             .Produces<ApiResponse<UserDto>>(201)
-             .Produces<ValidationResponse>(400);
-    }
-    
-    private static async Task<IResult> GetUsers(
-        [AsParameters] GetUsersQuery query,
-        IMediator mediator,
-        ILogger<UserEndpoints> logger)
-    {
-        var result = await mediator.Send(query);
-        return Results.Ok(ApiResponse<PagedResult<UserDto>>.Success(result));
-    }
-}
-```
-
-### 2. Controller-Based Endpoints
-```csharp
-[ApiController]
-[Route("api/v{version:apiVersion}/[controller]")]
-[ApiVersion("1.0")]
-public class UsersController : EndpointBase
-{
-    public UsersController(IMediator mediator, ILogger<UsersController> logger)
-        : base(mediator, logger)
-    {
-    }
-    
-    [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<PagedResult<UserDto>>), 200)]
-    public async Task<IResult> GetUsers([FromQuery] GetUsersQuery query)
-    {
-        var result = await Mediator.Send(query);
-        return await OkAsync(Task.FromResult(result));
-    }
-    
-    [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<UserDto>), 200)]
-    [ProducesResponseType(404)]
-    public async Task<IResult> GetUser(Guid id)
-    {
-        var query = new GetUserQuery(id);
-        var result = await Mediator.Send(query);
-        return await OkAsync(Task.FromResult(result));
-    }
-}
-```
-
-### 3. Structured Error Handling
-```csharp
-public static class ErrorHandler
-{
-    public static ApiResponse HandleException(Exception exception, bool includeDetails = false)
-    {
-        return exception switch
-        {
-            ValidationException validationEx => CreateValidationError(validationEx),
-            BusinessRuleValidationException businessEx => CreateBusinessRuleError(businessEx),
-            DomainException domainEx => CreateDomainError(domainEx),
-            UnauthorizedAccessException => CreateUnauthorizedError(),
-            ArgumentException argumentEx => CreateBadRequestError(argumentEx),
-            _ => CreateInternalServerError(exception, includeDetails)
-        };
-    }
-}
-```
-
-### 4. Health Check Configuration
-```csharp
-public static class HealthCheckExtensions
-{
-    public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration configuration)
-    {
-        services.AddHealthChecks()
-                .AddCheck("self", () => HealthCheckResult.Healthy())
-                .AddDbContextCheck<ApplicationDbContext>()
-                .AddRedis(configuration.GetConnectionString("Redis"))
-                .AddSqlServer(configuration.GetConnectionString("DefaultConnection"))
-                .AddUrlGroup(new Uri("https://api.external.com/health"), "external-api");
-        
-        return services;
-    }
-}
-```
-
-## Configuration Examples
-
-### appsettings.json Structure
-```json
-{
-  "Api": {
-    "Title": "My Microservice API",
-    "Version": "1.0",
-    "Description": "A comprehensive microservice API",
-    "EnableDetailedErrors": false,
-    "EnableRequestLogging": true,
-    "EnableSwaggerInProduction": false,
-    "RequestTimeout": "00:00:30",
-    "MaxRequestBodySize": 10485760
-  },
-  "Authentication": {
-    "Jwt": {
-      "Issuer": "https://your-auth-server.com",
-      "Audience": "your-api",
-      "SecretKey": "your-secret-key",
-      "ExpirationMinutes": 60
-    }
-  },
-  "RateLimiting": {
-    "EnableRateLimiting": true,
-    "GeneralRules": [
-      {
-        "Endpoint": "*",
-        "Period": "1m",
-        "Limit": 100
-      }
-    ]
-  },
-  "Cors": {
-    "AllowedOrigins": ["https://localhost:3000"],
-    "AllowedMethods": ["GET", "POST", "PUT", "DELETE"],
-    "AllowedHeaders": ["*"],
-    "AllowCredentials": true
-  }
-}
-```
-
-## Usage Examples
-
-### Program.cs Setup
-```csharp
+// In consuming application's Program.cs
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
-builder.Services.AddApi(builder.Configuration)
-                .AddApplication(builder.Configuration)
-                .AddInfrastructure(builder.Configuration);
+// Add BuildingBlocks
+builder.Services.AddDomain();
+builder.Services.AddApplication(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApi(builder.Configuration);
 
 var app = builder.Build();
 
 // Configure pipeline
-app.ConfigureApi();
+app.UseApi(app.Environment);
 
-// Map endpoints
-app.MapUserEndpoints();
-app.MapProductEndpoints();
+// Map endpoints using BuildingBlocks extensions
+app.MapApiGroup("/api/v1/users", group =>
+{
+    group.MapCrudEndpoints<User, UserId, UserDto, CreateUserRequest, UpdateUserRequest>();
+    
+    group.MapGet("/search", async ([AsParameters] UserSearchQuery query, IMediator mediator) =>
+    {
+        // Custom search endpoint
+    });
+});
 
 app.Run();
 ```
 
-### Custom Endpoint Implementation
-```csharp
-public class CreateUserEndpoint : EndpointBase
-{
-    public CreateUserEndpoint(IMediator mediator, ILogger<CreateUserEndpoint> logger)
-        : base(mediator, logger)
-    {
-    }
-    
-    public async Task<IResult> HandleAsync(CreateUserCommand command)
-    {
-        var result = await Mediator.Send(command);
-        return await CreatedAsync(Task.FromResult(result), $"/api/v1/users/{result.Id}");
-    }
-}
-```
+## Critical Requirements
 
-## Implementation Guidelines
+1. **Minimal APIs Only**: No controllers, no MVC dependencies beyond what's required for JSON serialization
+2. **Extension Method Pattern**: All endpoint mapping via extension methods
+3. **Strongly Typed ID Support**: Seamless integration with BuildingBlocks strongly typed IDs
+4. **Custom Problem Details**: No external Problem Details dependencies
+5. **Performance Focus**: Leverage Minimal API performance benefits
+6. **Clean Architecture**: Maintain separation of concerns
+7. **OpenAPI Integration**: Automatic documentation generation
 
-1. **Consistency**: Use standardized response formats across all endpoints
-2. **Security**: Implement comprehensive security middleware and validation
-3. **Performance**: Include caching, rate limiting, and performance monitoring
-4. **Observability**: Add structured logging, health checks, and metrics
-5. **Documentation**: Generate comprehensive OpenAPI specifications
-6. **Testing**: Support for integration and unit testing
-7. **Extensibility**: Pluggable architecture for custom behaviors
-
-Generate this library with full implementations, comprehensive XML documentation, and modern ASP.NET Core best practices. 
+Generate a production-ready API layer that leverages the full power of Minimal APIs while maintaining the BuildingBlocks architecture principles. 

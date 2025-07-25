@@ -49,8 +49,11 @@ public static class WebApplicationExtensions
         // Add endpoints
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapControllers();
+            // Map health checks
             endpoints.MapHealthChecks("/health");
+            
+            // Map other endpoints will be added by consuming applications
+            // using the extension methods from CrudEndpoints and QueryEndpoints
         });
 
         return app;
