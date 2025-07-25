@@ -1,9 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace BuildingBlocks.Domain.StronglyTypedIds;
 
 /// <summary>
 /// Base readonly struct for GUID-based strongly-typed identifiers
 /// </summary>
 /// <typeparam name="TId">The derived identifier type</typeparam>
+[StronglyTypedId(typeof(Guid))]
+[JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
 public readonly struct GuidId<TId> : IStronglyTypedId<Guid>, IEquatable<GuidId<TId>>
     where TId : struct, IStronglyTypedId<Guid>
 {
@@ -51,74 +55,130 @@ public readonly struct GuidId<TId> : IStronglyTypedId<Guid>, IEquatable<GuidId<T
     }
 
     /// <summary>
-    /// Tries to create a new instance from the underlying value
+    /// Parses a string representation to create a new instance
     /// </summary>
-    /// <param name="value">The GUID value</param>
-    /// <param name="result">The resulting strongly-typed identifier</param>
-    /// <returns>True if successful, false otherwise</returns>
-    public static bool TryFrom(Guid value, out TId result)
+    /// <param name="value">The string representation of the GUID</param>
+    /// <returns>A new strongly-typed identifier instance</returns>
+    public static TId Parse(string value)
     {
-        try
-        {
-            result = From(value);
-            return true;
-        }
-        catch
-        {
-            result = default;
-            return false;
-        }
+        return From(Guid.Parse(value));
     }
 
     /// <summary>
-    /// Returns the string representation of the GUID
+    /// Tries to parse a string representation to create a new instance
     /// </summary>
-    public override string ToString() => Value.ToString();
+    /// <param name="value">The string representation of the GUID</param>
+    /// <param name="result">The parsed identifier, if successful</param>
+    /// <returns>True if parsing was successful</returns>
+    public static bool TryParse(string? value, out TId result)
+    {
+        if (Guid.TryParse(value, out var guid))
+        {
+            result = From(guid);
+            return true;
+        }
+
+        result = default;
+        return false;
+    }
 
     /// <summary>
-    /// Returns the string representation of the GUID in the specified format
+    /// Determines whether two identifiers are equal
+    /// </summary>
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(GuidId<TId> other)
+    {
+        return Value.Equals(other.Value);
+    }
+
+    /// <summary>
+    /// Determines whether this identifier equals another object
+    /// </summary>
+    /// <param name="obj">The object to compare</param>
+    /// <returns>True if the objects are equal</returns>
+    public override bool Equals(object? obj)
+    {
+        return obj is GuidId<TId> other && Equals(other);
+    }
+
+    /// <summary>
+    /// Gets the hash code for this identifier
+    /// </summary>
+    /// <returns>The hash code</returns>
+    public override int GetHashCode()
+    {
+        return Value.GetHashCode();
+    }
+
+    /// <summary>
+    /// Returns the string representation of this identifier
+    /// </summary>
+    /// <returns>The string representation</returns>
+    public override string ToString()
+    {
+        return Value.ToString();
+    }
+
+    /// <summary>
+    /// Returns the string representation of this identifier in the specified format
     /// </summary>
     /// <param name="format">The format string</param>
-    /// <returns>The formatted GUID string</returns>
-    public string ToString(string format) => Value.ToString(format);
+    /// <returns>The formatted string representation</returns>
+    public string ToString(string? format)
+    {
+        return Value.ToString(format);
+    }
 
     /// <summary>
-    /// Determines whether this instance is equal to another
+    /// Determines whether this identifier equals another strongly-typed identifier
     /// </summary>
-    public bool Equals(GuidId<TId> other) => Value.Equals(other.Value);
-
-    /// <summary>
-    /// Determines whether this instance is equal to another IStronglyTypedId
-    /// </summary>
-    public bool Equals(IStronglyTypedId<Guid>? other) => other is not null && Value.Equals(other.Value);
-
-    /// <summary>
-    /// Determines whether this instance is equal to the specified object
-    /// </summary>
-    public override bool Equals(object? obj) => obj is GuidId<TId> other && Equals(other);
-
-    /// <summary>
-    /// Gets the hash code for this instance
-    /// </summary>
-    public override int GetHashCode() => Value.GetHashCode();
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(IStronglyTypedId<Guid>? other)
+    {
+        return other is not null && Value.Equals(other.Value);
+    }
 
     /// <summary>
     /// Equality operator
     /// </summary>
-    public static bool operator ==(GuidId<TId> left, GuidId<TId> right) => left.Equals(right);
+    /// <param name="left">The left operand</param>
+    /// <param name="right">The right operand</param>
+    /// <returns>True if the operands are equal</returns>
+    public static bool operator ==(GuidId<TId> left, GuidId<TId> right)
+    {
+        return left.Equals(right);
+    }
 
     /// <summary>
     /// Inequality operator
     /// </summary>
-    public static bool operator !=(GuidId<TId> left, GuidId<TId> right) => !left.Equals(right);
+    /// <param name="left">The left operand</param>
+    /// <param name="right">The right operand</param>
+    /// <returns>True if the operands are not equal</returns>
+    public static bool operator !=(GuidId<TId> left, GuidId<TId> right)
+    {
+        return !(left == right);
+    }
 
     /// <summary>
-    /// Implicit conversion to GUID
+    /// Implicit conversion from GUID to strongly-typed identifier
     /// </summary>
-    public static implicit operator Guid(GuidId<TId> id) => id.Value;
+    /// <param name="value">The GUID value</param>
+    /// <returns>A new strongly-typed identifier instance</returns>
+    public static implicit operator GuidId<TId>(Guid value)
+    {
+        return new GuidId<TId>(value);
+    }
 
     /// <summary>
-    /// Explicit conversion from GUID
+    /// Implicit conversion from strongly-typed identifier to GUID
     /// </summary>
-    public static explicit operator GuidId<TId>(Guid value) => new(value);
+    /// <param name="id">The strongly-typed identifier</param>
+    /// <returns>The underlying GUID value</returns>
+    public static implicit operator Guid(GuidId<TId> id)
+    {
+        return id.Value;
+    }
 } 

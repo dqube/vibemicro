@@ -216,14 +216,6 @@ This document outlines the complete architecture and file structure of the Build
 └── PagedDto.cs               # Paged DTO
 ```
 
-### 🗺️ Mapping
-*Object mapping abstractions*
-```
-├── IMapper.cs                 # Mapper interface
-├── IMappingProfile.cs         # Mapping profile interface
-└── MapperBase.cs              # Base mapper implementation
-```
-
 ### 🔐 Security
 *Security context and user information*
 ```
@@ -487,14 +479,6 @@ This document outlines the complete architecture and file structure of the Build
 └── Secrets/                   # Secrets management
 ```
 
-### 🗺️ Mapping
-*Object mapping implementations*
-```
-├── AutoMapper/                # AutoMapper implementation
-├── Mapster/                   # Mapster implementation
-└── Manual/                    # Manual mapping
-```
-
 ### ✅ Validation
 *Validation implementations*
 ```
@@ -703,4 +687,4 @@ This document outlines the complete architecture and file structure of the Build
 
 ---
 
-*This architecture provides a solid foundation for building scalable, maintainable microservices following modern .NET best practices.* 
+*This architecture provides a solid foundation for building scalable, maintainable microservices following modern .NET best practices with manual mapping for maximum control and flexibility.* 

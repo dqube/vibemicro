@@ -1,9 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace BuildingBlocks.Domain.StronglyTypedIds;
 
 /// <summary>
 /// Base readonly struct for string-based strongly-typed identifiers
 /// </summary>
 /// <typeparam name="TId">The derived identifier type</typeparam>
+[StronglyTypedId(typeof(string))]
+[JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
 public readonly struct StringId<TId> : IStronglyTypedId<string>, IEquatable<StringId<TId>>
     where TId : struct, IStronglyTypedId<string>
 {
@@ -18,10 +22,23 @@ public readonly struct StringId<TId> : IStronglyTypedId<string>, IEquatable<Stri
     /// <param name="value">The string value</param>
     public StringId(string value)
     {
-        if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("String ID cannot be null or whitespace", nameof(value));
-        Value = value;
+        Value = value ?? throw new ArgumentNullException(nameof(value));
     }
+
+    /// <summary>
+    /// Gets an empty identifier
+    /// </summary>
+    public static TId Empty => (TId)Activator.CreateInstance(typeof(TId), string.Empty)!;
+
+    /// <summary>
+    /// Checks if the identifier is empty
+    /// </summary>
+    public bool IsEmpty => string.IsNullOrEmpty(Value);
+
+    /// <summary>
+    /// Checks if the identifier is null or whitespace
+    /// </summary>
+    public bool IsNullOrWhiteSpace => string.IsNullOrWhiteSpace(Value);
 
     /// <summary>
     /// Creates a new instance from the underlying value
@@ -34,134 +51,120 @@ public readonly struct StringId<TId> : IStronglyTypedId<string>, IEquatable<Stri
     }
 
     /// <summary>
+    /// Creates a new instance from the underlying value, or empty if null
+    /// </summary>
+    /// <param name="value">The string value</param>
+    /// <returns>A new strongly-typed identifier instance</returns>
+    public static TId FromOrEmpty(string? value)
+    {
+        return From(value ?? string.Empty);
+    }
+
+    /// <summary>
     /// Tries to create a new instance from the underlying value
     /// </summary>
     /// <param name="value">The string value</param>
-    /// <param name="result">The resulting strongly-typed identifier</param>
-    /// <returns>True if successful, false otherwise</returns>
-    public static bool TryFrom(string value, out TId result)
+    /// <param name="result">The created identifier, if successful</param>
+    /// <returns>True if creation was successful</returns>
+    public static bool TryFrom(string? value, out TId result)
     {
-        try
+        if (!string.IsNullOrEmpty(value))
         {
             result = From(value);
             return true;
         }
-        catch
-        {
-            result = default;
-            return false;
-        }
+
+        result = default;
+        return false;
     }
 
     /// <summary>
-    /// Gets the length of the identifier string
+    /// Determines whether two identifiers are equal
     /// </summary>
-    public int Length => Value.Length;
-
-    /// <summary>
-    /// Checks if the identifier is empty or whitespace
-    /// </summary>
-    public bool IsEmpty => string.IsNullOrWhiteSpace(Value);
-
-    /// <summary>
-    /// Converts the identifier to uppercase
-    /// </summary>
-    /// <returns>A new identifier with uppercase value</returns>
-    public TId ToUpper()
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(StringId<TId> other)
     {
-        return From(Value.ToUpperInvariant());
+        return string.Equals(Value, other.Value, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// Converts the identifier to lowercase
+    /// Determines whether this identifier equals another object
     /// </summary>
-    /// <returns>A new identifier with lowercase value</returns>
-    public TId ToLower()
+    /// <param name="obj">The object to compare</param>
+    /// <returns>True if the objects are equal</returns>
+    public override bool Equals(object? obj)
     {
-        return From(Value.ToLowerInvariant());
+        return obj is StringId<TId> other && Equals(other);
     }
 
     /// <summary>
-    /// Trims whitespace from the identifier
+    /// Gets the hash code for this identifier
     /// </summary>
-    /// <returns>A new identifier with trimmed value</returns>
-    public TId Trim()
+    /// <returns>The hash code</returns>
+    public override int GetHashCode()
     {
-        return From(Value.Trim());
+        return Value.GetHashCode(StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// Checks if the identifier starts with the specified value
+    /// Returns the string representation of this identifier
     /// </summary>
-    /// <param name="prefix">The prefix to check</param>
-    /// <returns>True if the identifier starts with the prefix</returns>
-    public bool StartsWith(string prefix)
+    /// <returns>The string representation</returns>
+    public override string ToString()
     {
-        return Value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        return Value;
     }
 
     /// <summary>
-    /// Checks if the identifier ends with the specified value
+    /// Determines whether this identifier equals another strongly-typed identifier
     /// </summary>
-    /// <param name="suffix">The suffix to check</param>
-    /// <returns>True if the identifier ends with the suffix</returns>
-    public bool EndsWith(string suffix)
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(IStronglyTypedId<string>? other)
     {
-        return Value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+        return other is not null && string.Equals(Value, other.Value, StringComparison.Ordinal);
     }
-
-    /// <summary>
-    /// Checks if the identifier contains the specified value
-    /// </summary>
-    /// <param name="substring">The substring to check</param>
-    /// <returns>True if the identifier contains the substring</returns>
-    public bool Contains(string substring)
-    {
-        return Value.Contains(substring, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Returns the string representation of the identifier
-    /// </summary>
-    public override string ToString() => Value;
-
-    /// <summary>
-    /// Determines whether this instance is equal to another
-    /// </summary>
-    public bool Equals(StringId<TId> other) => Value.Equals(other.Value, StringComparison.Ordinal);
-
-    /// <summary>
-    /// Determines whether this instance is equal to another IStronglyTypedId
-    /// </summary>
-    public bool Equals(IStronglyTypedId<string>? other) => other is not null && Value.Equals(other.Value, StringComparison.Ordinal);
-
-    /// <summary>
-    /// Determines whether this instance is equal to the specified object
-    /// </summary>
-    public override bool Equals(object? obj) => obj is StringId<TId> other && Equals(other);
-
-    /// <summary>
-    /// Gets the hash code for this instance
-    /// </summary>
-    public override int GetHashCode() => Value.GetHashCode(StringComparison.Ordinal);
 
     /// <summary>
     /// Equality operator
     /// </summary>
-    public static bool operator ==(StringId<TId> left, StringId<TId> right) => left.Equals(right);
+    /// <param name="left">The left operand</param>
+    /// <param name="right">The right operand</param>
+    /// <returns>True if the operands are equal</returns>
+    public static bool operator ==(StringId<TId> left, StringId<TId> right)
+    {
+        return left.Equals(right);
+    }
 
     /// <summary>
     /// Inequality operator
     /// </summary>
-    public static bool operator !=(StringId<TId> left, StringId<TId> right) => !left.Equals(right);
+    /// <param name="left">The left operand</param>
+    /// <param name="right">The right operand</param>
+    /// <returns>True if the operands are not equal</returns>
+    public static bool operator !=(StringId<TId> left, StringId<TId> right)
+    {
+        return !(left == right);
+    }
 
     /// <summary>
-    /// Implicit conversion to string
+    /// Implicit conversion from string to strongly-typed identifier
     /// </summary>
-    public static implicit operator string(StringId<TId> id) => id.Value;
+    /// <param name="value">The string value</param>
+    /// <returns>A new strongly-typed identifier instance</returns>
+    public static implicit operator StringId<TId>(string value)
+    {
+        return new StringId<TId>(value);
+    }
 
     /// <summary>
-    /// Explicit conversion from string
+    /// Implicit conversion from strongly-typed identifier to string
     /// </summary>
-    public static explicit operator StringId<TId>(string value) => new(value);
+    /// <param name="id">The strongly-typed identifier</param>
+    /// <returns>The underlying string value</returns>
+    public static implicit operator string(StringId<TId> id)
+    {
+        return id.Value;
+    }
 } 

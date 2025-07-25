@@ -70,9 +70,6 @@ public static class ServiceCollectionExtensions
         // Add security
         services.AddSecurity(configuration);
 
-        // Add mapping
-        services.AddMapping(configuration);
-
         // Add validation
         services.AddInfrastructureValidation(configuration);
 
@@ -349,18 +346,6 @@ public static class ServiceCollectionExtensions
         // Register encryption service if implemented
         // services.TryAddScoped<IEncryptionService, EncryptionService>();
 
-        return services;
-    }
-
-    /// <summary>
-    /// Adds mapping services
-    /// </summary>
-    /// <param name="services">The service collection</param>
-    /// <param name="configuration">The configuration</param>
-    /// <returns>The service collection</returns>
-    public static IServiceCollection AddMapping(this IServiceCollection services, IConfiguration configuration)
-    {
-        // TODO: Implement mapping services
         return services;
     }
 

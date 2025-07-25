@@ -53,15 +53,12 @@ Generate a comprehensive API layer library that provides foundational building b
 <PackageReference Include="Microsoft.AspNetCore.HttpsPolicy" />
 
 <!-- Problem Details -->
-<PackageReference Include="Hellang.Middleware.ProblemDetails" />
 
 <!-- HTTP Client -->
 <PackageReference Include="Microsoft.Extensions.Http" />
 <PackageReference Include="Polly.Extensions.Http" />
 
-<!-- Serialization -->
-<PackageReference Include="System.Text.Json" />
-<PackageReference Include="Newtonsoft.Json" />
+<!-- Minimal APIs -->
 <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" />
 ```
 

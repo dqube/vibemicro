@@ -62,9 +62,6 @@
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Polly.Extensions.Http" />
 
-    <!-- Problem Details -->
-    <PackageReference Include="Hellang.Middleware.ProblemDetails" />
-
     <!-- Minimal APIs -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" />
   </ItemGroup>

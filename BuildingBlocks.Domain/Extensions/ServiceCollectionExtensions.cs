@@ -33,6 +33,9 @@ public static class ServiceCollectionExtensions
         // Add validators
         services.AddDomainValidators(assemblies);
 
+        // Configure JSON for strongly typed IDs
+        services.ConfigureJsonOptionsForStronglyTypedIds();
+
         return services;
     }
 

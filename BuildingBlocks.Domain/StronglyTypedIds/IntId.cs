@@ -1,9 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace BuildingBlocks.Domain.StronglyTypedIds;
 
 /// <summary>
 /// Base readonly struct for integer-based strongly-typed identifiers
 /// </summary>
 /// <typeparam name="TId">The derived identifier type</typeparam>
+[StronglyTypedId(typeof(int))]
+[JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
 public readonly struct IntId<TId> : IStronglyTypedId<int>, IEquatable<IntId<TId>>
     where TId : struct, IStronglyTypedId<int>
 {
@@ -18,10 +22,18 @@ public readonly struct IntId<TId> : IStronglyTypedId<int>, IEquatable<IntId<TId>
     /// <param name="value">The integer value</param>
     public IntId(int value)
     {
-        if (value <= 0)
-            throw new ArgumentException("Integer ID must be greater than zero", nameof(value));
         Value = value;
     }
+
+    /// <summary>
+    /// Gets a zero identifier
+    /// </summary>
+    public static TId Zero => (TId)Activator.CreateInstance(typeof(TId), 0)!;
+
+    /// <summary>
+    /// Checks if the identifier is zero
+    /// </summary>
+    public bool IsZero => Value == 0;
 
     /// <summary>
     /// Creates a new instance from the underlying value
@@ -34,87 +46,130 @@ public readonly struct IntId<TId> : IStronglyTypedId<int>, IEquatable<IntId<TId>
     }
 
     /// <summary>
-    /// Tries to create a new instance from the underlying value
+    /// Parses a string representation to create a new instance
     /// </summary>
-    /// <param name="value">The integer value</param>
-    /// <param name="result">The resulting strongly-typed identifier</param>
-    /// <returns>True if successful, false otherwise</returns>
-    public static bool TryFrom(int value, out TId result)
+    /// <param name="value">The string representation of the integer</param>
+    /// <returns>A new strongly-typed identifier instance</returns>
+    public static TId Parse(string value)
     {
-        try
+        return From(int.Parse(value));
+    }
+
+    /// <summary>
+    /// Tries to parse a string representation to create a new instance
+    /// </summary>
+    /// <param name="value">The string representation of the integer</param>
+    /// <param name="result">The parsed identifier, if successful</param>
+    /// <returns>True if parsing was successful</returns>
+    public static bool TryParse(string? value, out TId result)
+    {
+        if (int.TryParse(value, out var intValue))
         {
-            result = From(value);
+            result = From(intValue);
             return true;
         }
-        catch
-        {
-            result = default;
-            return false;
-        }
+
+        result = default;
+        return false;
     }
 
     /// <summary>
-    /// Creates a new instance with the next available identifier
+    /// Determines whether two identifiers are equal
     /// </summary>
-    /// <param name="current">The current identifier value</param>
-    /// <returns>A new identifier with incremented value</returns>
-    public static TId Next(TId current)
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(IntId<TId> other)
     {
-        return From(current.Value + 1);
+        return Value == other.Value;
     }
 
     /// <summary>
-    /// Gets the minimum valid identifier value
+    /// Determines whether this identifier equals another object
     /// </summary>
-    public static TId Min => From(1);
+    /// <param name="obj">The object to compare</param>
+    /// <returns>True if the objects are equal</returns>
+    public override bool Equals(object? obj)
+    {
+        return obj is IntId<TId> other && Equals(other);
+    }
 
     /// <summary>
-    /// Gets the maximum valid identifier value
+    /// Gets the hash code for this identifier
     /// </summary>
-    public static TId Max => From(int.MaxValue);
+    /// <returns>The hash code</returns>
+    public override int GetHashCode()
+    {
+        return Value.GetHashCode();
+    }
 
     /// <summary>
-    /// Returns the string representation of the integer
+    /// Returns the string representation of this identifier
     /// </summary>
-    public override string ToString() => Value.ToString();
+    /// <returns>The string representation</returns>
+    public override string ToString()
+    {
+        return Value.ToString();
+    }
 
     /// <summary>
-    /// Determines whether this instance is equal to another
+    /// Returns the string representation of this identifier in the specified format
     /// </summary>
-    public bool Equals(IntId<TId> other) => Value.Equals(other.Value);
+    /// <param name="format">The format string</param>
+    /// <returns>The formatted string representation</returns>
+    public string ToString(string? format)
+    {
+        return Value.ToString(format);
+    }
 
     /// <summary>
-    /// Determines whether this instance is equal to another IStronglyTypedId
+    /// Determines whether this identifier equals another strongly-typed identifier
     /// </summary>
-    public bool Equals(IStronglyTypedId<int>? other) => other is not null && Value.Equals(other.Value);
-
-    /// <summary>
-    /// Determines whether this instance is equal to the specified object
-    /// </summary>
-    public override bool Equals(object? obj) => obj is IntId<TId> other && Equals(other);
-
-    /// <summary>
-    /// Gets the hash code for this instance
-    /// </summary>
-    public override int GetHashCode() => Value.GetHashCode();
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(IStronglyTypedId<int>? other)
+    {
+        return other is not null && Value == other.Value;
+    }
 
     /// <summary>
     /// Equality operator
     /// </summary>
-    public static bool operator ==(IntId<TId> left, IntId<TId> right) => left.Equals(right);
+    /// <param name="left">The left operand</param>
+    /// <param name="right">The right operand</param>
+    /// <returns>True if the operands are equal</returns>
+    public static bool operator ==(IntId<TId> left, IntId<TId> right)
+    {
+        return left.Equals(right);
+    }
 
     /// <summary>
     /// Inequality operator
     /// </summary>
-    public static bool operator !=(IntId<TId> left, IntId<TId> right) => !left.Equals(right);
+    /// <param name="left">The left operand</param>
+    /// <param name="right">The right operand</param>
+    /// <returns>True if the operands are not equal</returns>
+    public static bool operator !=(IntId<TId> left, IntId<TId> right)
+    {
+        return !(left == right);
+    }
 
     /// <summary>
-    /// Implicit conversion to int
+    /// Implicit conversion from integer to strongly-typed identifier
     /// </summary>
-    public static implicit operator int(IntId<TId> id) => id.Value;
+    /// <param name="value">The integer value</param>
+    /// <returns>A new strongly-typed identifier instance</returns>
+    public static implicit operator IntId<TId>(int value)
+    {
+        return new IntId<TId>(value);
+    }
 
     /// <summary>
-    /// Explicit conversion from int
+    /// Implicit conversion from strongly-typed identifier to integer
     /// </summary>
-    public static explicit operator IntId<TId>(int value) => new(value);
+    /// <param name="id">The strongly-typed identifier</param>
+    /// <returns>The underlying integer value</returns>
+    public static implicit operator int(IntId<TId> id)
+    {
+        return id.Value;
+    }
 } 

@@ -1,335 +1,122 @@
-using BuildingBlocks.API.Configuration.Options;
 using BuildingBlocks.API.Middleware.ErrorHandling;
 using BuildingBlocks.API.Middleware.Logging;
-using Microsoft.Extensions.Options;
 
 namespace BuildingBlocks.API.Extensions;
 
 /// <summary>
-/// Extension methods for WebApplication to configure the request pipeline
+/// Extension methods for IApplicationBuilder to configure the API request pipeline
 /// </summary>
 public static class WebApplicationExtensions
 {
     /// <summary>
-    /// Configures the API pipeline
+    /// Configures the API request pipeline
     /// </summary>
-    /// <param name="app">The web application</param>
-    /// <param name="configuration">The configuration</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseApi(this WebApplication app, IConfiguration? configuration = null)
+    /// <param name="app">The application builder</param>
+    /// <param name="environment">The host environment</param>
+    /// <returns>The application builder</returns>
+    public static IApplicationBuilder UseApi(this IApplicationBuilder app, IWebHostEnvironment environment)
     {
-        configuration ??= app.Configuration;
-        
-        // Use exception handling
-        app.UseExceptionHandling();
-        
-        // Use correlation ID middleware
-        app.UseCorrelationId();
-        
-        // Use request logging
-        app.UseRequestLogging();
-        
-        // Use HTTPS redirection
+        // Add security headers
+        app.UseSecurityHeaders();
+
+        // Add problem details middleware (should be early in pipeline)
+        app.UseProblemDetailsMiddleware();
+
+        // Add HTTPS redirection
         app.UseHttpsRedirection();
-        
-        // Use CORS
-        app.UseApiCors();
-        
-        // Use authentication and authorization
-        app.UseAuthentication();
-        app.UseAuthorization();
-        
-        // Use rate limiting
-        app.UseApiRateLimiting();
-        
-        // Use OpenAPI/Swagger
-        app.UseOpenApi();
-        
-        // Use health checks
-        app.UseApiHealthChecks();
 
-        return app;
-    }
+        // Add correlation ID middleware
+        app.UseCorrelationId();
 
-    /// <summary>
-    /// Uses exception handling middleware
-    /// </summary>
-    /// <param name="app">The web application</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseExceptionHandling(this WebApplication app)
-    {
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseDeveloperExceptionPage();
-        }
-        else
-        {
-            app.UseMiddleware<GlobalExceptionMiddleware>();
-        }
+        // Add request logging
+        app.UseRequestLogging();
 
-        return app;
-    }
+        // Add routing
+        app.UseRouting();
 
-    /// <summary>
-    /// Uses correlation ID middleware
-    /// </summary>
-    /// <param name="app">The web application</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseCorrelationId(this WebApplication app)
-    {
-        app.UseMiddleware<CorrelationIdMiddleware>();
-        return app;
-    }
-
-    /// <summary>
-    /// Uses request logging middleware
-    /// </summary>
-    /// <param name="app">The web application</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseRequestLogging(this WebApplication app)
-    {
-        var apiOptions = app.Services.GetService<IOptions<ApiOptions>>()?.Value ?? new ApiOptions();
-        
-        if (apiOptions.EnableRequestLogging)
-        {
-            app.UseMiddleware<RequestLoggingMiddleware>();
-        }
-
-        return app;
-    }
-
-    /// <summary>
-    /// Uses CORS middleware
-    /// </summary>
-    /// <param name="app">The web application</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseApiCors(this WebApplication app)
-    {
+        // Add CORS
         app.UseCors();
-        return app;
-    }
 
-    /// <summary>
-    /// Uses rate limiting middleware
-    /// </summary>
-    /// <param name="app">The web application</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseApiRateLimiting(this WebApplication app)
-    {
-        var rateLimitOptions = app.Services.GetService<IOptions<RateLimitingOptions>>()?.Value ?? new RateLimitingOptions();
-        
-        if (rateLimitOptions.Enabled)
+        // Add rate limiting
+        app.UseRateLimiter();
+
+        // Add authentication
+        app.UseAuthentication();
+
+        // Add authorization  
+        app.UseAuthorization();
+
+        // Add endpoints
+        app.UseEndpoints(endpoints =>
         {
-            app.UseRateLimiter();
-        }
+            endpoints.MapControllers();
+            endpoints.MapHealthChecks("/health");
+        });
 
         return app;
     }
 
     /// <summary>
-    /// Uses OpenAPI/Swagger middleware
+    /// Configures development-specific middleware
     /// </summary>
-    /// <param name="app">The web application</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseOpenApi(this WebApplication app)
+    /// <param name="app">The application builder</param>
+    /// <returns>The application builder</returns>
+    public static IApplicationBuilder UseDevelopmentApi(this IApplicationBuilder app)
     {
-        var apiOptions = app.Services.GetService<IOptions<ApiOptions>>()?.Value ?? new ApiOptions();
-        
-        if (app.Environment.IsDevelopment() || apiOptions.EnableSwaggerInProduction)
+        // Add Swagger in development
+        app.UseSwagger();
+        app.UseSwaggerUI(options =>
         {
-            app.UseSwagger();
-            app.UseSwaggerUI(options =>
-            {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", $"{apiOptions.Title} v{apiOptions.Version}");
-                options.RoutePrefix = "swagger";
-                options.DocumentTitle = apiOptions.Title;
-                options.DisplayRequestDuration();
-                options.EnableTryItOutByDefault();
-                options.EnableFilter();
-                options.EnableDeepLinking();
-            });
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "BuildingBlocks API v1");
+            options.RoutePrefix = "swagger";
+        });
 
-            // Use Scalar (alternative to Swagger UI)
-            app.MapScalarApiReference(options =>
-            {
-                options.WithTitle(apiOptions.Title)
-                       .WithTheme(ScalarTheme.BluePlanet)
-                       .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-            });
-        }
-
-        return app;
-    }
-
-    /// <summary>
-    /// Uses health checks middleware
-    /// </summary>
-    /// <param name="app">The web application</param>
-    /// <returns>The web application</returns>
-    public static WebApplication UseApiHealthChecks(this WebApplication app)
-    {
-        var healthOptions = app.Services.GetService<IOptions<HealthCheckOptions>>()?.Value ?? new HealthCheckOptions();
-        
-        if (healthOptions.Enabled)
+        // Add Scalar API documentation
+        app.UseScalar(options =>
         {
-            app.MapHealthChecks(healthOptions.EndpointPath, new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-            {
-                ResponseWriter = async (context, report) =>
-                {
-                    context.Response.ContentType = "application/json";
-                    
-                    var response = new
-                    {
-                        status = report.Status.ToString(),
-                        checks = report.Entries.Select(entry => new
-                        {
-                            name = entry.Key,
-                            status = entry.Value.Status.ToString(),
-                            description = entry.Value.Description,
-                            data = entry.Value.Data
-                        }),
-                        totalDuration = report.TotalDuration
-                    };
-
-                    await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
-                    }));
-                }
-            });
-
-            // Map health checks UI if configured
-            if (!string.IsNullOrEmpty(healthOptions.UIPath))
-            {
-                app.MapHealthChecksUI(options =>
-                {
-                    options.UIPath = healthOptions.UIPath;
-                });
-            }
-        }
+            options.RoutePrefix = "scalar";
+            options.OpenApiRoutePattern = "/swagger/{documentName}/swagger.json";
+        });
 
         return app;
     }
 
     /// <summary>
-    /// Maps API endpoints
+    /// Adds security headers middleware
     /// </summary>
-    /// <param name="app">The web application</param>
-    /// <param name="configureEndpoints">Action to configure endpoints</param>
-    /// <returns>The web application</returns>
-    public static WebApplication MapApiEndpoints(this WebApplication app, Action<IEndpointRouteBuilder> configureEndpoints)
+    /// <param name="app">The application builder</param>
+    /// <returns>The application builder</returns>
+    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
     {
-        configureEndpoints(app);
-        return app;
+        return app.Use(async (context, next) =>
+        {
+            // Add security headers
+            context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+            context.Response.Headers.Add("X-Frame-Options", "DENY");
+            context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+            context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
+
+            await next();
+        });
     }
 
     /// <summary>
-    /// Maps versioned API endpoints
+    /// Adds correlation ID middleware
     /// </summary>
-    /// <param name="app">The web application</param>
-    /// <param name="version">The API version</param>
-    /// <param name="configureEndpoints">Action to configure endpoints</param>
-    /// <returns>The web application</returns>
-    public static WebApplication MapVersionedApiEndpoints(
-        this WebApplication app, 
-        string version, 
-        Action<RouteGroupBuilder> configureEndpoints)
+    /// <param name="app">The application builder</param>
+    /// <returns>The application builder</returns>
+    public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
     {
-        var versionedGroup = app.MapGroup($"/api/v{version}")
-            .WithTags($"API v{version}")
-            .WithOpenApi();
-
-        configureEndpoints(versionedGroup);
-
-        return app;
+        return app.UseMiddleware<CorrelationIdMiddleware>();
     }
-}
-
-/// <summary>
-/// Scalar theme enumeration
-/// </summary>
-public enum ScalarTheme
-{
-    /// <summary>
-    /// Blue planet theme
-    /// </summary>
-    BluePlanet,
-    
-    /// <summary>
-    /// Default theme
-    /// </summary>
-    Default
-}
-
-/// <summary>
-/// Scalar target enumeration
-/// </summary>
-public enum ScalarTarget
-{
-    /// <summary>
-    /// C# target
-    /// </summary>
-    CSharp
-}
-
-/// <summary>
-/// Scalar client enumeration
-/// </summary>
-public enum ScalarClient
-{
-    /// <summary>
-    /// HTTP client
-    /// </summary>
-    HttpClient
-}
-
-/// <summary>
-/// Placeholder Scalar API reference options
-/// </summary>
-public class ScalarApiReferenceOptions
-{
-    /// <summary>
-    /// Sets the title
-    /// </summary>
-    /// <param name="title">The title</param>
-    /// <returns>The options</returns>
-    public ScalarApiReferenceOptions WithTitle(string title) => this;
 
     /// <summary>
-    /// Sets the theme
+    /// Adds request logging middleware
     /// </summary>
-    /// <param name="theme">The theme</param>
-    /// <returns>The options</returns>
-    public ScalarApiReferenceOptions WithTheme(ScalarTheme theme) => this;
-
-    /// <summary>
-    /// Sets the default HTTP client
-    /// </summary>
-    /// <param name="target">The target</param>
-    /// <param name="client">The client</param>
-    /// <returns>The options</returns>
-    public ScalarApiReferenceOptions WithDefaultHttpClient(ScalarTarget target, ScalarClient client) => this;
-}
-
-/// <summary>
-/// Extension methods for Scalar integration
-/// </summary>
-public static class ScalarExtensions
-{
-    /// <summary>
-    /// Maps Scalar API reference
-    /// </summary>
-    /// <param name="app">The web application</param>
-    /// <param name="configureOptions">Action to configure options</param>
-    /// <returns>The web application</returns>
-    public static WebApplication MapScalarApiReference(this WebApplication app, Action<ScalarApiReferenceOptions> configureOptions)
+    /// <param name="app">The application builder</param>
+    /// <returns>The application builder</returns>
+    public static IApplicationBuilder UseRequestLogging(this IApplicationBuilder app)
     {
-        var options = new ScalarApiReferenceOptions();
-        configureOptions(options);
-        
-        // Placeholder implementation - would integrate with actual Scalar package
-        app.MapGet("/scalar", () => "Scalar API Reference would be here");
-        
-        return app;
+        return app.UseMiddleware<RequestLoggingMiddleware>();
     }
 } 

@@ -1,567 +1,450 @@
 # BuildingBlocks.Application Library Generation Prompt
 
 ## Overview
-Generate a comprehensive Application layer library implementing Clean Architecture principles with CQRS (Command Query Responsibility Segregation), Mediator pattern, and cross-cutting concerns through pipeline behaviors. This library orchestrates domain logic and provides use case implementations for microservices.
+Generate a comprehensive Application Layer library following Clean Architecture, Domain-Driven Design (DDD), and CQRS patterns for .NET 8.0 microservices.
 
 ## Project Configuration
 
-### Target Framework & Features
-- **.NET 8.0** (`net8.0`)
-- **Implicit Usings**: Enabled
-- **Nullable Reference Types**: Enabled
-- **Treat Warnings as Errors**: Enabled
-- **Generate Documentation File**: Enabled
-
-### Package Dependencies
+### Basic Setup
 ```xml
-<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
-<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-<PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="8.0.0" />
-<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Application Layer Dependencies -->
+  <ItemGroup>
+    <!-- Domain Layer Reference -->
+    <ProjectReference Include="..\BuildingBlocks.Domain\BuildingBlocks.Domain.csproj" />
+    
+    <!-- Microsoft Extensions -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    
+    <!-- Validation -->
+    <PackageReference Include="FluentValidation" />
+    
+    <!-- Serialization -->
+    <PackageReference Include="System.Text.Json" />
+    
+    <!-- Performance -->
+    <PackageReference Include="System.Threading.Channels" />
+    <PackageReference Include="System.Reactive" />
+  </ItemGroup>
+</Project>
 ```
 
-### Project References
-```xml
-<ProjectReference Include="../BuildingBlocks.Domain/BuildingBlocks.Domain.csproj" />
+## Architecture Principles
+
+### Clean Architecture
+- **Application Services**: Orchestrate domain operations
+- **Use Cases**: Business operations implementations
+- **Interfaces**: Define contracts for infrastructure
+- **DTOs**: Data transfer between layers
+- **Behaviors**: Cross-cutting concerns
+
+### CQRS Implementation
+- **Commands**: Write operations (Create, Update, Delete)
+- **Queries**: Read operations (Get, List, Search)
+- **Handlers**: Command and Query processors
+- **Events**: Domain and Integration events
+- **Mediator**: Request/Response coordination
+
+### Key Patterns
+- **Custom Mediator** (not MediatR) for request handling
+- **Pipeline Behaviors** for cross-cutting concerns
+- **Repository Pattern** abstractions
+- **Unit of Work** for transaction management
+- **Outbox/Inbox** patterns for reliable messaging
+
+## Folder Structure
+
+```
+BuildingBlocks.Application/
+├── Behaviors/                    # Pipeline behaviors
+│   ├── IPipelineBehavior.cs     # Behavior interface
+│   ├── LoggingBehavior.cs       # Request/response logging
+│   ├── ValidationBehavior.cs    # Input validation
+│   ├── CachingBehavior.cs       # Response caching
+│   ├── TransactionBehavior.cs   # Database transactions
+│   ├── PerformanceBehavior.cs   # Performance monitoring
+│   └── RetryBehavior.cs         # Retry policies
+├── CQRS/                        # CQRS implementation
+│   ├── Commands/                # Command handling
+│   │   ├── ICommand.cs         # Command interfaces
+│   │   ├── ICommandHandler.cs  # Handler interfaces
+│   │   └── CommandBase.cs      # Base command class
+│   ├── Queries/                 # Query handling
+│   │   ├── IQuery.cs           # Query interfaces
+│   │   ├── IQueryHandler.cs    # Handler interfaces
+│   │   ├── QueryBase.cs        # Base query class
+│   │   ├── PagedQuery.cs       # Pagination support
+│   │   ├── PagedResult.cs      # Paged result wrapper
+│   │   └── SortingQuery.cs     # Sorting support
+│   ├── Events/                  # Event handling
+│   │   ├── IEvent.cs           # Event interfaces
+│   │   ├── IEventHandler.cs    # Handler interfaces
+│   │   ├── IIntegrationEvent.cs # Integration events
+│   │   ├── IntegrationEventBase.cs # Base integration event
+│   │   └── DomainEventNotification.cs # Domain event wrapper
+│   ├── Messages/                # Message abstractions
+│   │   ├── IMessage.cs         # Message interface
+│   │   ├── IStreamMessage.cs   # Stream message interface
+│   │   ├── MessageBase.cs      # Base message class
+│   │   └── IMessageContext.cs  # Message context
+│   └── Mediator/                # Custom mediator
+│       ├── IMediator.cs        # Mediator interface
+│       └── Mediator.cs         # Mediator implementation
+├── Services/                    # Application services
+│   ├── IApplicationService.cs  # Service marker interface
+│   ├── ApplicationServiceBase.cs # Base service class
+│   ├── IDomainEventService.cs  # Domain event service
+│   ├── DomainEventService.cs   # Domain event implementation
+│   ├── IServiceContext.cs      # Service context interface
+│   ├── ServiceContext.cs       # Service context implementation
+│   ├── OutboxBackgroundService.cs # Outbox pattern service
+│   └── InboxBackgroundService.cs  # Inbox pattern service
+├── DTOs/                        # Data Transfer Objects
+│   ├── BaseDto.cs              # Base DTO class
+│   ├── AuditableDto.cs         # Auditable DTO
+│   └── PagedDto.cs             # Paged DTO wrapper
+├── Validation/                  # Input validation
+│   ├── IValidator.cs           # Validator interface
+│   ├── IValidationRule.cs      # Validation rule interface
+│   ├── ValidationResult.cs     # Validation result
+│   ├── ValidationError.cs      # Validation error
+│   ├── CompositeValidator.cs   # Composite validation
+│   └── ValidatorBase.cs        # Base validator class
+├── Caching/                     # Application caching
+│   ├── ICacheService.cs        # Cache service interface
+│   ├── ICacheKey.cs            # Cache key interface
+│   ├── CacheKey.cs             # Cache key implementation
+│   ├── CacheSettings.cs        # Cache configuration
+│   └── CachePolicy.cs          # Cache policies
+├── Messaging/                   # Message bus abstractions
+│   ├── IMessageBus.cs          # Message bus interface
+│   ├── IEventBus.cs            # Event bus interface
+│   ├── IMessageHandler.cs      # Message handler interface
+│   ├── IMessagePublisher.cs    # Message publisher interface
+│   └── MessageMetadata.cs      # Message metadata
+├── Security/                    # Security abstractions
+│   ├── ICurrentUserService.cs  # Current user interface
+│   ├── IPermissionService.cs   # Permission service interface
+│   ├── UserContext.cs          # User context
+│   └── SecurityContext.cs      # Security context
+├── Outbox/                      # Outbox pattern
+│   ├── IOutboxService.cs       # Outbox service interface
+│   ├── OutboxMessage.cs        # Outbox message entity
+│   ├── OutboxMessageStatus.cs  # Message status enum
+│   ├── IOutboxProcessor.cs     # Outbox processor interface
+│   └── OutboxProcessor.cs      # Outbox processor implementation
+├── Inbox/                       # Inbox pattern
+│   ├── IInboxService.cs        # Inbox service interface
+│   ├── InboxMessage.cs         # Inbox message entity
+│   ├── InboxMessageStatus.cs   # Message status enum
+│   ├── IInboxProcessor.cs      # Inbox processor interface
+│   └── InboxProcessor.cs       # Inbox processor implementation
+├── Dispatchers/                 # Message dispatching
+│   ├── ICommandDispatcher.cs   # Command dispatcher interface
+│   ├── CommandDispatcher.cs    # Command dispatcher implementation
+│   ├── IQueryDispatcher.cs     # Query dispatcher interface
+│   ├── QueryDispatcher.cs      # Query dispatcher implementation
+│   ├── IEventDispatcher.cs     # Event dispatcher interface
+│   ├── EventDispatcher.cs      # Event dispatcher implementation
+│   ├── IMessageDispatcher.cs   # Message dispatcher interface
+│   └── MessageDispatcher.cs    # Message dispatcher implementation
+├── Sagas/                       # Long-running processes
+│   ├── ISaga.cs                # Saga interface
+│   ├── SagaBase.cs             # Base saga implementation
+│   └── ISagaManager.cs         # Saga manager interface
+├── Idempotency/                 # Idempotent operations
+│   ├── IIdempotencyService.cs  # Idempotency service interface
+│   └── IdempotencyOptions.cs   # Idempotency configuration
+└── Extensions/                  # Extension methods
+    ├── ServiceCollectionExtensions.cs # DI registration
+    ├── ApplicationExtensions.cs # Application extensions
+    ├── MediatorExtensions.cs    # Mediator extensions
+    └── QueryableExtensions.cs   # Queryable extensions
 ```
 
-## Architecture & Patterns
+## Key Components Implementation
 
-### Core Application Concepts
-1. **CQRS**: Separate models for commands (write) and queries (read)
-2. **Mediator Pattern**: Decoupled communication between application layers
-3. **Pipeline Behaviors**: Cross-cutting concerns (logging, validation, caching, etc.)
-4. **Application Services**: Orchestrate domain operations
-5. **DTOs**: Data transfer objects for layer boundaries
-6. **Mapping**: Transform between domain and application models
-
-### Access Modifier Strategy
-- **Public**: Interfaces and abstractions used by API/Infrastructure layers
-- **Internal**: Implementation details specific to application layer
-
-## Folder Structure & Components
-
-### `/CQRS` - Command Query Responsibility Segregation
-```
-CQRS/
-├── Commands/
-│   ├── ICommand.cs              # Command marker interface
-│   ├── ICommandHandler.cs       # Command handler interface
-│   └── CommandBase.cs           # Base command implementation
-├── Queries/
-│   ├── IQuery.cs               # Query interface
-│   ├── IQueryHandler.cs        # Query handler interface
-│   ├── QueryBase.cs            # Base query implementation
-│   ├── PagedQuery.cs           # Pagination support
-│   ├── PagedResult.cs          # Paginated results
-│   └── SortingQuery.cs         # Sorting support
-├── Events/
-│   ├── IEvent.cs               # Event marker interface
-│   ├── IEventHandler.cs        # Event handler interface
-│   ├── DomainEventNotification.cs # Domain event wrapper
-│   ├── IIntegrationEvent.cs    # Integration event interface
-│   └── IntegrationEventBase.cs # Base integration event
-├── Messages/
-│   ├── IMessage.cs             # Base message interface
-│   ├── IMessageContext.cs      # Message context interface
-│   ├── IStreamMessage.cs       # Streaming message interface
-│   └── MessageBase.cs          # Base message implementation
-└── Mediator/
-    ├── IMediator.cs            # Mediator interface
-    └── Mediator.cs             # Mediator implementation
-```
-
-**ICommand.cs** - Command Interface:
+### Custom Mediator
+**IMediator.cs** - Mediator Interface:
 ```csharp
+public interface IMediator
+{
+    // Commands without return value
+    Task SendAsync<TCommand>(TCommand command, CancellationToken cancellationToken = default)
+        where TCommand : ICommand;
+
+    // Commands with return value
+    Task<TResult> SendAsync<TCommand, TResult>(TCommand command, CancellationToken cancellationToken = default)
+        where TCommand : ICommand<TResult>;
+
+    // Queries
+    Task<TResult> QueryAsync<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default)
+        where TQuery : IQuery<TResult>;
+
+    // Events
+    Task PublishAsync<TEvent>(TEvent eventItem, CancellationToken cancellationToken = default)
+        where TEvent : IEvent;
+}
+```
+
+### CQRS Commands
+**ICommand.cs** - Command Interfaces:
+```csharp
+// Command without return value
 public interface ICommand : IMessage
 {
 }
 
-public interface ICommand<out TResponse> : IMessage<TResponse>
+// Command with return value
+public interface ICommand<TResult> : IMessage
 {
+}
+
+// Command handler without return value
+public interface ICommandHandler<TCommand>
+    where TCommand : ICommand
+{
+    Task HandleAsync(TCommand command, CancellationToken cancellationToken = default);
+}
+
+// Command handler with return value
+public interface ICommandHandler<TCommand, TResult>
+    where TCommand : ICommand<TResult>
+{
+    Task<TResult> HandleAsync(TCommand command, CancellationToken cancellationToken = default);
 }
 ```
 
-**IQuery.cs** - Query Interface:
+### CQRS Queries
+**IQuery.cs** - Query Interfaces:
 ```csharp
-public interface IQuery<out TResponse> : IMessage<TResponse>
+// Query interface
+public interface IQuery<TResult> : IMessage
 {
+}
+
+// Query handler interface
+public interface IQueryHandler<TQuery, TResult>
+    where TQuery : IQuery<TResult>
+{
+    Task<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default);
 }
 ```
 
-**PagedQuery.cs** - Pagination Support:
-```csharp
-public abstract record PagedQuery : QueryBase
-{
-    public int PageNumber { get; init; } = 1;
-    public int PageSize { get; init; } = 10;
-    public int Skip => (PageNumber - 1) * PageSize;
-    
-    protected PagedQuery()
-    {
-        if (PageNumber < 1) PageNumber = 1;
-        if (PageSize < 1) PageSize = 10;
-        if (PageSize > 100) PageSize = 100;
-    }
-}
-```
-
-**PagedResult.cs** - Paginated Results:
-```csharp
-public sealed record PagedResult<T>(
-    IReadOnlyList<T> Items,
-    int TotalCount,
-    int PageNumber,
-    int PageSize
-)
-{
-    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
-    public bool HasPreviousPage => PageNumber > 1;
-    public bool HasNextPage => PageNumber < TotalPages;
-    
-    public static PagedResult<T> Empty => new(Array.Empty<T>(), 0, 1, 10);
-    
-    public static PagedResult<T> Create(IReadOnlyList<T> items, int totalCount, int pageNumber, int pageSize)
-        => new(items, totalCount, pageNumber, pageSize);
-}
-```
-
-### `/Behaviors` - Pipeline Cross-Cutting Concerns
-```
-Behaviors/
-├── IPipelineBehavior.cs        # Behavior interface
-├── LoggingBehavior.cs          # Request/Response logging
-├── ValidationBehavior.cs       # Input validation
-├── CachingBehavior.cs          # Response caching
-├── PerformanceBehavior.cs      # Performance monitoring
-├── RetryBehavior.cs            # Retry policies
-└── TransactionBehavior.cs      # Database transactions
-```
-
+### Pipeline Behaviors
 **IPipelineBehavior.cs** - Behavior Interface:
 ```csharp
-public interface IPipelineBehavior<in TRequest, TResponse>
-    where TRequest : IMessage<TResponse>
+public interface IPipelineBehavior<TRequest, TResponse>
 {
-    Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken);
+    Task<TResponse> HandleAsync(
+        TRequest request, 
+        RequestHandlerDelegate<TResponse> next, 
+        CancellationToken cancellationToken);
 }
 
 public delegate Task<TResponse> RequestHandlerDelegate<TResponse>();
 ```
 
-**LoggingBehavior.cs** - Request Logging:
-```csharp
-public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : IMessage<TResponse>
-{
-    private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
-    
-    public LoggingBehavior(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
-        => _logger = logger;
-    
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
-    {
-        var requestName = typeof(TRequest).Name;
-        var requestId = Guid.NewGuid();
-        
-        _logger.LogInformation("Starting request {RequestName} with ID {RequestId}", requestName, requestId);
-        
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            var response = await next();
-            stopwatch.Stop();
-            
-            _logger.LogInformation("Completed request {RequestName} with ID {RequestId} in {ElapsedMs}ms", 
-                requestName, requestId, stopwatch.ElapsedMilliseconds);
-            
-            return response;
-        }
-        catch (Exception ex)
-        {
-            stopwatch.Stop();
-            _logger.LogError(ex, "Request {RequestName} with ID {RequestId} failed after {ElapsedMs}ms", 
-                requestName, requestId, stopwatch.ElapsedMilliseconds);
-            throw;
-        }
-    }
-}
-```
-
-**ValidationBehavior.cs** - Input Validation:
-```csharp
-public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : IMessage<TResponse>
-{
-    private readonly IEnumerable<IValidator<TRequest>> _validators;
-    
-    public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
-        => _validators = validators;
-    
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
-    {
-        if (!_validators.Any()) return await next();
-        
-        var context = new ValidationContext<TRequest>(request);
-        var validationResults = await Task.WhenAll(_validators.Select(v => v.ValidateAsync(context, cancellationToken)));
-        var failures = validationResults.SelectMany(r => r.Errors).Where(f => f != null).ToList();
-        
-        if (failures.Any())
-            throw new ValidationException(failures);
-        
-        return await next();
-    }
-}
-```
-
-**CachingBehavior.cs** - Response Caching:
-```csharp
-public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : IMessage<TResponse>, ICacheableQuery
-{
-    private readonly ICacheService _cacheService;
-    private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
-    
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
-    {
-        if (request.BypassCache) return await next();
-        
-        var cacheKey = request.CacheKey;
-        var cachedResponse = await _cacheService.GetAsync<TResponse>(cacheKey, cancellationToken);
-        
-        if (cachedResponse != null)
-        {
-            _logger.LogDebug("Cache hit for {CacheKey}", cacheKey);
-            return cachedResponse;
-        }
-        
-        var response = await next();
-        await _cacheService.SetAsync(cacheKey, response, request.CacheDuration, cancellationToken);
-        
-        return response;
-    }
-}
-```
-
-### `/Services` - Application Orchestration
-```
-Services/
-├── IApplicationService.cs      # Base service interface
-├── ApplicationServiceBase.cs   # Base service implementation
-├── IServiceContext.cs          # Service context interface
-├── ServiceContext.cs           # Service context implementation
-├── IDomainEventService.cs      # Domain event service interface
-└── DomainEventService.cs       # Domain event service implementation
-```
-
+### Application Services
 **IApplicationService.cs** - Service Interface:
 ```csharp
 public interface IApplicationService
 {
-    IServiceContext Context { get; }
+    // Marker interface for application services
 }
-```
 
-**ApplicationServiceBase.cs** - Base Service:
-```csharp
 public abstract class ApplicationServiceBase : IApplicationService
 {
-    protected ApplicationServiceBase(IServiceContext context)
-        => Context = context;
+    protected IMediator Mediator { get; }
+    protected ILogger Logger { get; }
+    protected ICurrentUserService CurrentUser { get; }
+
+    protected ApplicationServiceBase(
+        IMediator mediator,
+        ILogger logger,
+        ICurrentUserService currentUser)
+    {
+        Mediator = mediator;
+        Logger = logger;
+        CurrentUser = currentUser;
+    }
+}
+```
+
+### Outbox Pattern
+**IOutboxService.cs** - Outbox Interface:
+```csharp
+public interface IOutboxService
+{
+    Task AddMessageAsync<T>(T message, CancellationToken cancellationToken = default)
+        where T : IIntegrationEvent;
     
-    public IServiceContext Context { get; }
+    Task<IEnumerable<OutboxMessage>> GetUnprocessedMessagesAsync(
+        int batchSize = 50, 
+        CancellationToken cancellationToken = default);
     
-    protected async Task<TResult> ExecuteAsync<TResult>(Func<Task<TResult>> operation)
-    {
-        try
-        {
-            return await operation();
-        }
-        catch (DomainException)
-        {
-            throw; // Re-throw domain exceptions as-is
-        }
-        catch (Exception ex)
-        {
-            throw new ApplicationException("An application error occurred", ex);
-        }
-    }
+    Task MarkAsProcessedAsync(Guid messageId, CancellationToken cancellationToken = default);
+    Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken = default);
 }
 ```
 
-### `/DTOs` - Data Transfer Objects
-```
-DTOs/
-└── BaseDto.cs                  # Base DTO with common properties
-```
-
-**BaseDto.cs** - Base DTO:
+### Validation Framework
+**IValidator.cs** - Validation Interface:
 ```csharp
-public abstract record BaseDto
+public interface IValidator<T>
 {
-    public string? CreatedBy { get; init; }
-    public DateTime? CreatedOn { get; init; }
-    public string? ModifiedBy { get; init; }
-    public DateTime? ModifiedOn { get; init; }
-}
-```
-
-### `/Mapping` - Object Mapping
-```
-Mapping/
-└── IMapper.cs                  # Mapping interface
-```
-
-**IMapper.cs** - Mapping Interface:
-```csharp
-public interface IMapper
-{
-    TDestination Map<TDestination>(object source);
-    TDestination Map<TSource, TDestination>(TSource source);
-    TDestination Map<TSource, TDestination>(TSource source, TDestination destination);
-}
-```
-
-### `/Validation` - Input Validation
-```
-Validation/
-└── IValidator.cs               # Validator interface
-```
-
-**IValidator.cs** - Validator Interface:
-```csharp
-public interface IValidator<in T>
-{
-    Task<ValidationResult> ValidateAsync(ValidationContext<T> context, CancellationToken cancellationToken = default);
+    Task<ValidationResult> ValidateAsync(T instance, CancellationToken cancellationToken = default);
 }
 
-public sealed record ValidationResult(IEnumerable<ValidationFailure> Errors)
+public class ValidationResult
 {
-    public bool IsValid => !Errors.Any();
-    public static ValidationResult Success => new(Array.Empty<ValidationFailure>());
-}
-
-public sealed record ValidationFailure(string PropertyName, string ErrorMessage, object? AttemptedValue = null);
-```
-
-### `/Caching` - Caching Abstractions
-```
-Caching/
-└── ICacheService.cs            # Cache service interface
-```
-
-**ICacheService.cs** - Cache Interface:
-```csharp
-public interface ICacheService
-{
-    Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default);
-    Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default);
-    Task RemoveAsync(string key, CancellationToken cancellationToken = default);
-    Task RemoveByPatternAsync(string pattern, CancellationToken cancellationToken = default);
-}
-
-public interface ICacheableQuery
-{
-    string CacheKey { get; }
-    TimeSpan CacheDuration { get; }
-    bool BypassCache { get; }
-}
-```
-
-### `/Messaging` - Message Bus
-```
-Messaging/
-└── IMessageBus.cs              # Message bus interface
-```
-
-**IMessageBus.cs** - Message Bus Interface:
-```csharp
-public interface IMessageBus
-{
-    Task PublishAsync<T>(T message, CancellationToken cancellationToken = default) where T : IIntegrationEvent;
-    Task SendAsync<T>(T command, CancellationToken cancellationToken = default) where T : ICommand;
-    Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
-    Task<TResponse> QueryAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
-}
-```
-
-### `/Security` - Security Context
-```
-Security/
-└── ICurrentUser.cs             # Current user interface
-```
-
-**ICurrentUser.cs** - Current User Interface:
-```csharp
-public interface ICurrentUser
-{
-    string? UserId { get; }
-    string? UserName { get; }
-    string? Email { get; }
-    IEnumerable<string> Roles { get; }
-    bool IsAuthenticated { get; }
-    bool IsInRole(string role);
-    IDictionary<string, object> Claims { get; }
-}
-```
-
-### `/Extensions` - Application Extensions
-```
-Extensions/
-├── ServiceCollectionExtensions.cs # DI registration
-└── QueryableExtensions.cs         # Query extensions
-```
-
-**ServiceCollectionExtensions.cs** - DI Registration:
-```csharp
-public static class ServiceCollectionExtensions
-{
-    public static IServiceCollection AddApplicationLayer(this IServiceCollection services)
-    {
-        services.AddScoped<IMediator, Mediator>();
-        
-        // Register all handlers
-        services.Scan(scan => scan
-            .FromAssemblies(Assembly.GetExecutingAssembly())
-            .AddClasses(classes => classes.AssignableTo(typeof(ICommandHandler<,>)))
-            .AsImplementedInterfaces()
-            .WithScopedLifetime());
-        
-        // Register behaviors
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-        
-        return services;
-    }
-}
-```
-
-**QueryableExtensions.cs** - Query Extensions:
-```csharp
-public static class QueryableExtensions
-{
-    public static async Task<PagedResult<T>> ToPagedResultAsync<T>(
-        this IQueryable<T> query,
-        int pageNumber,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-        
-        return PagedResult<T>.Create(items, totalCount, pageNumber, pageSize);
-    }
+    public bool IsValid { get; }
+    public IReadOnlyList<ValidationError> Errors { get; }
     
-    public static IQueryable<T> ApplySpecification<T>(this IQueryable<T> query, ISpecification<T> specification)
-    {
-        if (specification.Criteria != null)
-            query = query.Where(specification.Criteria);
-        
-        query = specification.Includes
-            .Aggregate(query, (current, include) => current.Include(include));
-        
-        if (specification.OrderBy != null)
-            query = query.OrderBy(specification.OrderBy);
-        else if (specification.OrderByDescending != null)
-            query = query.OrderByDescending(specification.OrderByDescending);
-        
-        return query;
-    }
+    // Implementation details...
 }
 ```
 
-## Key Design Principles
+## Key Design Patterns
 
-### 1. CQRS Separation
-- Clear separation between commands (write) and queries (read)
-- Different models and validation for different operations
-- Optimized for specific use cases
+### 1. Custom Mediator Pattern
+- **No MediatR dependency** - custom implementation
+- **Type-safe request/response** handling
+- **Pipeline behavior** support
+- **Async/await** throughout
 
-### 2. Mediator Pattern
-- Decoupled communication between layers
-- Single point of entry for requests
-- Easy to add cross-cutting concerns
+### 2. CQRS Implementation
+- **Separate read/write models**
+- **Command handlers** for write operations
+- **Query handlers** for read operations
+- **Event handlers** for domain events
 
-### 3. Pipeline Behaviors
-- Cross-cutting concerns as composable behaviors
-- Consistent application of concerns (logging, validation, etc.)
-- Easy to add/remove behaviors
+### 3. Cross-Cutting Concerns
+- **Logging behavior** for all requests
+- **Validation behavior** with FluentValidation
+- **Caching behavior** for queries
+- **Transaction behavior** for commands
+- **Performance monitoring**
 
-### 4. Domain Event Integration
-- Bridge between domain events and integration events
-- Consistent event handling patterns
-- Support for eventual consistency
-
-### 5. Modern C# Features
-- Records for immutable DTOs
-- Pattern matching for robust error handling
-- Async/await throughout
-- Nullable reference types
+### 4. Messaging Patterns
+- **Outbox pattern** for reliable messaging
+- **Inbox pattern** for message deduplication
+- **Event sourcing** support
+- **Saga pattern** for long-running processes
 
 ## Usage Examples
 
-### Command Definition
+### Command Handler Example
 ```csharp
-public sealed record CreateUserCommand(
-    string Username,
-    string Email,
-    string Password
-) : CommandBase<CreateUserResult>;
+public class CreateUserCommand : CommandBase<User>
+{
+    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+}
 
-public sealed record CreateUserResult(
-    Guid UserId,
-    bool IsSuccess,
-    string? ErrorMessage = null
-);
-```
-
-### Query Definition
-```csharp
-public sealed record GetUsersQuery(
-    string? SearchTerm = null,
-    bool? IsActive = null
-) : PagedQuery, IQuery<PagedResult<UserDto>>;
-```
-
-### Command Handler
-```csharp
-public sealed class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, CreateUserResult>
+public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, User>
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
-    
-    public async Task<CreateUserResult> Handle(CreateUserCommand request, CancellationToken cancellationToken)
+
+    public CreateUserCommandHandler(IUserRepository userRepository, IUnitOfWork unitOfWork)
     {
-        // Business logic implementation
-        var user = User.Create(request.Username, request.Email, request.Password);
+        _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<User> HandleAsync(CreateUserCommand command, CancellationToken cancellationToken)
+    {
+        var user = User.Create(command.Email, command.FirstName, command.LastName);
+        
         await _userRepository.AddAsync(user, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
-        return new CreateUserResult(user.Id.Value, true);
+        return user;
     }
 }
 ```
 
-### Query Handler with Caching
+### Query Handler Example
 ```csharp
-public sealed record GetUsersQuery : PagedQuery, IQuery<PagedResult<UserDto>>, ICacheableQuery
+public class GetUserByIdQuery : QueryBase<User?>
 {
-    public string CacheKey => $"users-{PageNumber}-{PageSize}";
-    public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
-    public bool BypassCache => false;
+    public UserId UserId { get; set; }
+}
+
+public class GetUserByIdQueryHandler : IQueryHandler<GetUserByIdQuery, User?>
+{
+    private readonly IReadOnlyUserRepository _userRepository;
+
+    public GetUserByIdQueryHandler(IReadOnlyUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<User?> HandleAsync(GetUserByIdQuery query, CancellationToken cancellationToken)
+    {
+        return await _userRepository.GetByIdAsync(query.UserId, cancellationToken);
+    }
 }
 ```
 
-## Implementation Notes
+## Registration and Configuration
 
-1. **Dependency Injection**: Register all handlers and behaviors automatically
-2. **Error Handling**: Use result patterns for business errors
-3. **Validation**: Implement comprehensive input validation
-4. **Caching**: Cache expensive queries with appropriate invalidation
-5. **Performance**: Monitor and log performance metrics
-6. **Testing**: Create integration tests for complete request pipelines
+### ServiceCollectionExtensions.cs
+```csharp
+public static IServiceCollection AddApplication(this IServiceCollection services, params Assembly[] assemblies)
+{
+    // Add mediator
+    services.AddScoped<IMediator, Mediator>();
+    
+    // Add behaviors
+    services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+    services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+    
+    // Register handlers from assemblies
+    services.AddHandlers(assemblies);
+    
+    return services;
+}
+```
 
-Generate this library with full implementations, comprehensive XML documentation, and adherence to these architectural principles. 
+## Best Practices
+
+### 1. Command Design
+- **Immutable commands** with required data
+- **Single responsibility** per command
+- **Validation** at command level
+- **Business logic** in domain layer
+
+### 2. Query Design
+- **Read-only operations** only
+- **Projection** to DTOs
+- **Caching** for expensive queries
+- **Pagination** for large datasets
+
+### 3. Event Handling
+- **Async event processing**
+- **Idempotent handlers**
+- **Error handling** and retry logic
+- **Event versioning** support
+
+### 4. Error Handling
+- **Structured exceptions**
+- **Validation errors** collection
+- **Logging** at appropriate levels
+- **User-friendly** error messages
+
+This Application Layer provides a robust foundation for implementing business logic while maintaining clean separation of concerns and supporting modern architectural patterns. 

@@ -1,6 +1,7 @@
 using BuildingBlocks.API.Configuration.Options;
 using BuildingBlocks.API.Middleware.ErrorHandling;
 using BuildingBlocks.API.Middleware.Logging;
+using BuildingBlocks.Domain.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
@@ -81,13 +82,25 @@ public static class ServiceCollectionExtensions
         {
             options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.WriteIndented = false;
+            options.JsonSerializerOptions.AddStronglyTypedIdConverters();
         });
 
         // Add API explorer
         services.AddEndpointsApiExplorer();
 
-        // Add problem details
-        services.AddProblemDetails();
+        // Add custom problem details
+        services.AddProblemDetailsMiddleware(options =>
+        {
+            options.IncludeExceptionDetails = false; // Set in environment-specific config
+            options.MapStandardExceptions();
+        });
+
+        // Configure JSON for strongly typed IDs
+        services.ConfigureJsonOptionsForStronglyTypedIds(options =>
+        {
+            options.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            options.WriteIndented = false;
+        });
 
         return services;
     }
