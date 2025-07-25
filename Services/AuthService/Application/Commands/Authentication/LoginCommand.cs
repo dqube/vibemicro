@@ -20,6 +20,7 @@ public sealed record LoginCommand(
 /// <param name="Username">The username</param>
 /// <param name="Email">The email address</param>
 /// <param name="Roles">The user's roles</param>
+/// <param name="Token">The JWT access token</param>
 /// <param name="IsSuccess">Whether authentication was successful</param>
 /// <param name="ErrorMessage">Error message if authentication failed</param>
 public sealed record LoginResponse(
@@ -27,12 +28,13 @@ public sealed record LoginResponse(
     string? Username,
     string? Email,
     IReadOnlyList<int> Roles,
+    string? Token,
     bool IsSuccess,
     string? ErrorMessage = null)
 {
-    public static LoginResponse Success(Guid userId, string username, string email, IReadOnlyList<int> roles) =>
-        new(userId, username, email, roles, true);
+    public static LoginResponse Success(Guid userId, string username, string email, IReadOnlyList<int> roles, string token) =>
+        new(userId, username, email, roles, token, true);
 
     public static LoginResponse Failure(string errorMessage) =>
-        new(null, null, null, Array.Empty<int>(), false, errorMessage);
+        new(null, null, null, Array.Empty<int>(), null, false, errorMessage);
 } 

@@ -1,6 +1,7 @@
 using BuildingBlocks.Application.CQRS.Commands;
 using AuthService.Domain.Services;
 using AuthService.Domain.ValueObjects;
+using AuthService.Infrastructure.Authentication;
 using Microsoft.Extensions.Logging;
 
 namespace AuthService.Application.Commands.Authentication;
@@ -11,13 +12,16 @@ namespace AuthService.Application.Commands.Authentication;
 public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginResponse>
 {
     private readonly IAuthDomainService _authDomainService;
+    private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<LoginCommandHandler> _logger;
 
     public LoginCommandHandler(
         IAuthDomainService authDomainService,
+        IJwtTokenService jwtTokenService,
         ILogger<LoginCommandHandler> logger)
     {
         _authDomainService = authDomainService;
+        _jwtTokenService = jwtTokenService;
         _logger = logger;
     }
 
@@ -42,13 +46,18 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginRes
             }
 
             var user = authResult.User;
+
+            // Generate JWT token
+            var token = _jwtTokenService.GenerateToken(user, command.RememberMe);
+
             _logger.LogInformation("Login successful for user: {UserId}", user.Id);
 
             return LoginResponse.Success(
                 user.Id.Value,
                 user.Username.Value,
                 user.Email.Value,
-                user.RoleIds.Select(r => r.Value).ToList());
+                user.RoleIds.Select(r => r.Value).ToList(),
+                token);
         }
         catch (Exception ex)
         {

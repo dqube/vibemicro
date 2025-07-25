@@ -6,9 +6,11 @@ using AuthService.Domain.ValueObjects;
 using AuthService.Domain.Repositories;
 using AuthService.Domain.BusinessRules;
 using AuthService.Domain.Exceptions;
+using AuthService.Domain.Services;
 using Microsoft.Extensions.Logging;
+using BuildingBlocks.Domain.Repository;
 
-namespace AuthService.Domain.Services;
+namespace AuthService.Infrastructure.Services;
 
 /// <summary>
 /// Domain service implementation for authentication operations
@@ -18,16 +20,19 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly IRegistrationTokenRepository _tokenRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public AuthDomainService(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         IRegistrationTokenRepository tokenRepository,
+        IUnitOfWork unitOfWork,
         ILogger<AuthDomainService> logger) : base(logger)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _tokenRepository = tokenRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<AuthenticationResult> AuthenticateAsync(Username username, string password, CancellationToken cancellationToken = default)
@@ -97,6 +102,9 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
         var verificationToken = RegistrationToken.CreateEmailVerification(user.Id);
         await _tokenRepository.AddAsync(verificationToken, cancellationToken);
 
+        // Save changes
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
         Logger.LogInformation("User '{Username}' registered successfully with ID '{UserId}'", username.Value, user.Id);
         return RegistrationResult.Success(user, verificationToken);
     }
@@ -125,6 +133,8 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
         // Create new password reset token
         var resetToken = RegistrationToken.CreatePasswordReset(user.Id);
         await _tokenRepository.AddAsync(resetToken, cancellationToken);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         Logger.LogInformation("Password reset token created for user '{UserId}'", user.Id);
         return PasswordResetResult.Success(resetToken);
@@ -167,6 +177,7 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
 
         await _userRepository.UpdateAsync(user, cancellationToken);
         await _tokenRepository.UpdateAsync(token, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         Logger.LogInformation("Password reset completed for user '{UserId}'", user.Id);
         return PasswordResetResult.Success();
@@ -189,6 +200,8 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
         // Create new email verification token
         var verificationToken = RegistrationToken.CreateEmailVerification(userId);
         await _tokenRepository.AddAsync(verificationToken, cancellationToken);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         Logger.LogInformation("Email verification token created for user '{UserId}'", userId);
         return EmailVerificationResult.Success(verificationToken);
@@ -227,6 +240,7 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
 
         token.Use();
         await _tokenRepository.UpdateAsync(token, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         Logger.LogInformation("Email verification completed for user '{UserId}'", user.Id);
         return EmailVerificationResult.Success();
@@ -254,6 +268,7 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
         {
             user.ChangePassword(currentPassword, newPassword, userId);
             await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             Logger.LogInformation("Password changed successfully for user '{UserId}'", userId);
             return PasswordChangeResult.Success();
@@ -298,6 +313,7 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
         {
             user.RecordFailedLoginAttempt();
             await _userRepository.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
 
             Logger.LogWarning("Authentication failed: Invalid password for user '{UserId}'. Failed attempts: {FailedAttempts}", 
                 user.Id, user.FailedLoginAttempts);
@@ -309,6 +325,7 @@ public class AuthDomainService : DomainServiceBase, IAuthDomainService
         {
             user.ResetFailedLoginAttempts();
             await _userRepository.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         Logger.LogInformation("User '{UserId}' authenticated successfully", user.Id);

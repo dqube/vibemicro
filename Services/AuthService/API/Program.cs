@@ -11,25 +11,20 @@ builder.Services.AddAuthServiceDomain();
 builder.Services.AddAuthServiceApplication();
 builder.Services.AddAuthServiceInfrastructure(builder.Configuration);
 
-// Add API services
-builder.Services.AddApi();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// Add API services from BuildingBlocks (includes all middleware, auth, validation, etc.)
+builder.Services.AddApi(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Configure the HTTP request pipeline using BuildingBlocks
+app.UseApi(app.Environment);
 
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Map endpoints
+// Map AuthService specific endpoints
 app.MapAuthenticationEndpoints();
+app.MapUserEndpoints();
+app.MapTokenEndpoints();
+
+// Health check endpoints are automatically mapped by BuildingBlocks
+// Available at: /health, /health/ready, /health/live
 
 app.Run(); 
