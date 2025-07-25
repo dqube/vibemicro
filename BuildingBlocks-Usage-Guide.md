@@ -1,324 +1,515 @@
-# Using BuildingBlocks in Cursor for Other Projects
+# Using BuildingBlocks with Centralized Package Management
 
-## 1. Generate & Package Building Blocks
+## Overview
+This guide shows how to create new microservices using the BuildingBlocks foundation with automatic package management, feature flags, and intelligent project type detection. No manual package references needed!
 
-### Generate Libraries Using Prompts
-1. **Domain Library**: Use `01-Domain-Library-Prompt.md` 
-2. **Application Library**: Use `02-Application-Library-Prompt.md`
-3. **Infrastructure Library**: Use `03-Infrastructure-Library-Prompt.md` 
-4. **API Library**: Use `04-API-Library-Prompt.md`
+## 📋 Table of Contents
+- [🚀 Quick Start](#-quick-start)
+- [🏗️ Project Creation Workflows](#-project-creation-workflows)
+- [🎯 Feature Configuration](#-feature-configuration)
+- [🤖 AI-Assisted Development](#-ai-assisted-development)
+- [📦 Centralized Package Management](#-centralized-package-management)
+- [🛠️ Advanced Configuration](#-advanced-configuration)
+- [📚 Best Practices](#-best-practices)
 
-### Package as NuGet Packages
+---
+
+## 🚀 Quick Start
+
+### 1. Copy Build Configuration Files
+Copy these files from BuildingBlocks to your new solution:
+```
+YourSolution/
+├── Directory.Build.props       # Global properties & feature flags
+├── Directory.Build.targets     # Centralized package management
+├── Directory.Packages.props    # Central Package Management (optional)
+├── global.json                 # .NET SDK version
+├── BuildingBlocks.ruleset      # Code analysis rules
+└── coverlet.runsettings        # Test coverage settings
+```
+
+### 2. Reference BuildingBlocks Projects
+Add project references to BuildingBlocks layers:
 ```xml
-<!-- Directory.Build.props for all BuildingBlocks -->
-<Project>
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageVersion>1.0.0</PackageVersion>
-    <Authors>Your Team</Authors>
-    <Company>Your Company</Company>
-    <PackageProjectUrl>https://github.com/yourorg/buildingblocks</PackageProjectUrl>
-  </PropertyGroup>
-</Project>
-```
-
-## 2. Project Creation Workflows in Cursor
-
-### **A. New Microservice Template**
-
-#### Create Project Structure
-```
-NewMicroservice/
-├── src/
-│   ├── NewMicroservice.API/
-│   ├── NewMicroservice.Application/
-│   ├── NewMicroservice.Domain/
-│   └── NewMicroservice.Infrastructure/
-├── tests/
-└── docker/
-```
-
-#### Reference BuildingBlocks
-```xml
-<!-- In each project file -->
+<!-- In your Domain project -->
 <ItemGroup>
-  <PackageReference Include="BuildingBlocks.Domain" Version="1.0.0" />
-  <PackageReference Include="BuildingBlocks.Application" Version="1.0.0" />
-  <PackageReference Include="BuildingBlocks.Infrastructure" Version="1.0.0" />
-  <PackageReference Include="BuildingBlocks.API" Version="1.0.0" />
+  <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Domain\BuildingBlocks.Domain.csproj" />
+</ItemGroup>
+
+<!-- In your Application project -->
+<ItemGroup>
+  <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Application\BuildingBlocks.Application.csproj" />
+  <ProjectReference Include="..\YourService.Domain\YourService.Domain.csproj" />
+</ItemGroup>
+
+<!-- In your Infrastructure project -->
+<ItemGroup>
+  <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Infrastructure\BuildingBlocks.Infrastructure.csproj" />
+  <ProjectReference Include="..\YourService.Application\YourService.Application.csproj" />
+</ItemGroup>
+
+<!-- In your API project -->
+<ItemGroup>
+  <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.API\BuildingBlocks.API.csproj" />
+  <ProjectReference Include="..\YourService.Infrastructure\YourService.Infrastructure.csproj" />
 </ItemGroup>
 ```
 
-### **B. Cursor AI Prompts for New Projects**
+### 3. That's It! 
+No package references needed. The build system automatically includes packages based on project type and enabled features.
 
-#### Domain Layer Generation
+---
+
+## 🏗️ Project Creation Workflows
+
+### **A. New Microservice Structure**
+```
+YourService/
+├── src/
+│   ├── YourService.API/           # 🌐 API Layer (auto-detects API packages)
+│   ├── YourService.Application/   # ⚙️ Application Layer (auto-detects app packages)
+│   ├── YourService.Domain/        # 🏛️ Domain Layer (minimal packages)
+│   └── YourService.Infrastructure/ # 🔧 Infrastructure Layer (full feature set)
+├── tests/
+│   ├── YourService.UnitTests/     # 🧪 Unit Tests (auto-detects test packages)
+│   └── YourService.IntegrationTests/ # 🔬 Integration Tests
+└── docker/
+```
+
+### **B. Project Type Auto-Detection**
+The build system automatically detects project types:
+
+| Project Pattern | Detected As | Gets Packages |
+|----------------|-------------|---------------|
+| `*.Domain.*` | Domain | Core packages only |
+| `*.Application.*` | Application | Core + hosting, caching, validation |
+| `*.Infrastructure.*` | Infrastructure | Full feature set (EF, Redis, etc.) |
+| `*.API.*` | API | ASP.NET Core, Swagger, health checks |
+| `*Test*` | Test | xUnit, Coverlet, test utilities |
+| `*Benchmark*` | Benchmark | BenchmarkDotNet |
+
+---
+
+## 🎯 Feature Configuration
+
+### **Global Feature Control**
+Control features across your entire solution:
+
+```xml
+<!-- In Directory.Build.props or individual .csproj -->
+<PropertyGroup>
+  <!-- Disable features you don't need -->
+  <IncludeEntityFramework>false</IncludeEntityFramework>
+  <IncludeMessaging>false</IncludeMessaging>
+  <IncludeSwagger>false</IncludeSwagger>
+  <IncludeCaching>false</IncludeCaching>
+</PropertyGroup>
+```
+
+### **Available Feature Flags**
+
+#### 🌟 Global Features
+```xml
+<IncludeValidation>true</IncludeValidation>           <!-- FluentValidation -->
+<IncludeSerialization>true</IncludeSerialization>     <!-- JSON, Protobuf, MessagePack -->
+<IncludeHttpClient>true</IncludeHttpClient>           <!-- HTTP client with Polly -->
+<IncludeSecurity>true</IncludeSecurity>               <!-- Security packages -->
+<IncludeTestFramework>true</IncludeTestFramework>     <!-- xUnit and test packages -->
+```
+
+#### 🔧 Infrastructure Features
+```xml
+<IncludeEntityFramework>true</IncludeEntityFramework> <!-- EF Core + SQL Server -->
+<IncludeCaching>true</IncludeCaching>                 <!-- Memory + Redis caching -->
+<IncludeAuthentication>true</IncludeAuthentication>   <!-- JWT authentication -->
+<IncludeMapping>true</IncludeMapping>                 <!-- AutoMapper + Mapster -->
+<IncludeBackgroundServices>true</IncludeBackgroundServices> <!-- Hangfire -->
+<IncludeMessaging>true</IncludeMessaging>             <!-- Service Bus + RabbitMQ -->
+<IncludeMonitoring>true</IncludeMonitoring>           <!-- OpenTelemetry + Health Checks -->
+<IncludeCloudStorage>true</IncludeCloudStorage>       <!-- Azure Blobs + AWS S3 -->
+<IncludeEmailServices>true</IncludeEmailServices>     <!-- MailKit + MimeKit -->
+```
+
+#### 🌐 API Features
+```xml
+<IncludeSwagger>true</IncludeSwagger>                 <!-- OpenAPI documentation -->
+<IncludeHealthChecks>true</IncludeHealthChecks>       <!-- Health check endpoints -->
+<IncludeApiVersioning>true</IncludeApiVersioning>     <!-- API versioning -->
+<IncludeRateLimiting>true</IncludeRateLimiting>       <!-- Rate limiting -->
+```
+
+#### 🛠️ Tooling Features
+```xml
+<IsSourceLinkSupported>true</IsSourceLinkSupported>   <!-- Source Link debugging -->
+<UseMinVer>true</UseMinVer>                           <!-- MinVer versioning -->
+```
+
+---
+
+## 🤖 AI-Assisted Development
+
+### **A. Domain Layer Generation**
 ```prompt
 Using BuildingBlocks.Domain as the foundation, create a [YourDomain] microservice domain layer with:
 
-1. Entities: [Entity1], [Entity2], [Entity3]
-2. Value Objects: [ValueObject1], [ValueObject2]
-3. Domain Events: [Event1], [Event2]
-4. Business Rules: [Rule1], [Rule2]
-5. Repositories: I[Entity]Repository interfaces
+Domain Requirements:
+- Entities: [Entity1], [Entity2], [Entity3]
+- Value Objects: [ValueObject1], [ValueObject2]
+- Business Rules: [Rule1], [Rule2]
+- Domain Events: [Event1], [Event2]
 
-Follow the patterns from BuildingBlocks.Domain:
-- Use strongly-typed IDs
-- Inherit from Entity<TId, TIdValue>
-- Create domain events for significant business operations
-- Implement business rules as separate classes
-- Use value objects for complex properties
+Follow BuildingBlocks patterns:
+- Use strongly-typed IDs (Entity1Id, Entity2Id)
+- Inherit from Entity<TId, TIdValue> or AggregateRoot<TId, TIdValue>
+- Create immutable value objects inheriting from ValueObject
+- Implement business rules as separate classes inheriting from BusinessRuleBase
+- Create domain events inheriting from DomainEventBase
+- Use repository interfaces (IEntity1Repository)
 
-Generate the complete domain model with proper validation and business logic.
+The build system will automatically include the right packages. Generate complete domain model with:
+1. Strongly-typed ID structs with JSON converters
+2. Entity classes with proper encapsulation
+3. Value object classes with validation
+4. Domain event classes for state changes
+5. Business rule classes with validation logic
+6. Repository interfaces
+7. Domain service interfaces if needed
+
+Include comprehensive validation and follow DDD principles.
 ```
 
-#### Application Layer Generation
+### **B. Application Layer Generation**
 ```prompt
 Using BuildingBlocks.Application patterns, create the application layer for [YourDomain] with:
 
-1. Commands: Create[Entity], Update[Entity], Delete[Entity]
-2. Queries: Get[Entity], List[Entity]s, Search[Entity]s
-3. DTOs: [Entity]Dto, Create[Entity]Dto, Update[Entity]Dto
-4. Validators: FluentValidation validators for all commands
-5. Handlers: CQRS handlers using custom mediator
+CQRS Requirements:
+- Commands: Create[Entity], Update[Entity], Delete[Entity]
+- Queries: Get[Entity]ById, List[Entity]s, Search[Entity]s
+- DTOs: [Entity]Dto, Create[Entity]Dto, Update[Entity]Dto
+- Validators: FluentValidation for all commands/queries
 
-Follow BuildingBlocks.Application patterns:
-- Inherit from CommandBase/QueryBase
-- Use PagedQuery for list operations
-- Implement proper mapping between domain and DTOs
-- Add comprehensive validation
-- Use ICommandHandler<T>, IQueryHandler<T,R> interfaces
-- Implement HandleAsync() methods
+Follow BuildingBlocks patterns:
+- Commands inherit from CommandBase
+- Queries inherit from QueryBase<TResponse>
+- Use PagedQuery<T> for list operations
+- Implement ICommandHandler<TCommand> and IQueryHandler<TQuery, TResponse>
+- Create proper DTOs inheriting from BaseDto
+- Use comprehensive FluentValidation validators
 - Include pipeline behaviors (logging, validation, performance)
 
-Generate complete CQRS implementation with proper error handling.
+The build system automatically includes:
+- FluentValidation packages (IncludeValidation=true)
+- Hosting abstractions for dependency injection
+- Caching abstractions for response caching
+
+Generate complete CQRS implementation with:
+1. Command/Query classes with validation attributes
+2. Handler classes with proper error handling
+3. DTO classes with mapping logic
+4. FluentValidation validator classes
+5. Application service classes if needed
+6. Integration event handlers
+
+Include comprehensive error handling and validation.
 ```
 
-#### Infrastructure Layer Generation
+### **C. Infrastructure Layer Generation**
 ```prompt
 Using BuildingBlocks.Infrastructure, create the infrastructure layer for [YourDomain] with:
 
-1. DbContext: [YourDomain]DbContext with proper entity configurations
-2. Repositories: Concrete implementations of domain repositories
-3. Entity Configurations: EF Core entity type configurations
-4. Migrations: Initial database migration
-5. Services: Infrastructure services (email, file storage, etc.)
+Infrastructure Requirements:
+- DbContext: [YourDomain]DbContext with entity configurations
+- Repositories: Concrete implementations of domain repositories
+- Entity Configurations: EF Core type configurations
+- Migrations: Initial database structure
+- Services: Infrastructure service implementations
 
-Follow BuildingBlocks.Infrastructure patterns:
-- Inherit from DbContextBase
-- Use Repository<TEntity, TId> base class
-- Implement UnitOfWork pattern
-- Add proper audit and soft delete interceptors
-- Configure strongly-typed IDs properly
+Follow BuildingBlocks patterns:
+- DbContext inherits from DbContextBase
+- Repositories inherit from Repository<TEntity, TId>
+- Entity configurations inherit from EntityConfigurationBase
+- Use proper audit and soft delete interceptors
+- Configure strongly-typed IDs with value converters
 
-Generate complete data access layer with EF Core.
+The build system automatically includes (based on feature flags):
+- Entity Framework Core (IncludeEntityFramework=true)
+- Caching (Redis/Memory) (IncludeCaching=true)
+- Authentication (JWT) (IncludeAuthentication=true)
+- Mapping (AutoMapper/Mapster) (IncludeMaping=true)
+- Monitoring (OpenTelemetry) (IncludeMonitoring=true)
+
+Generate complete data access layer with:
+1. DbContext with proper entity configurations
+2. Repository implementations using UnitOfWork
+3. EF Core entity type configurations
+4. Database migration files
+5. Infrastructure service implementations
+6. Dependency injection registration
+
+Include proper connection string configuration and health checks.
 ```
 
-#### API Layer Generation
+### **D. API Layer Generation**
 ```prompt
 Using BuildingBlocks.API, create the API layer for [YourDomain] with:
 
-1. Controllers: [Entity]Controller with full CRUD operations
-2. Endpoints: Minimal API endpoints as alternative
-3. DTOs: API-specific request/response models
-4. Validation: Request validation attributes
-5. Documentation: OpenAPI/Swagger documentation
+API Requirements:
+- Controllers: [Entity]Controller with full CRUD operations
+- Endpoints: Minimal API endpoints as alternative
+- DTOs: API-specific request/response models
+- Validation: Comprehensive request validation
+- Documentation: OpenAPI/Swagger documentation
 
-Follow BuildingBlocks.API patterns:
-- Inherit from EndpointBase
-- Use ApiResponse<T> for all responses
-- Implement proper HTTP status codes
-- Add comprehensive validation
-- Include rate limiting and caching where appropriate
+Follow BuildingBlocks patterns:
+- Controllers inherit from EndpointBase (if using base controller)
+- All responses use ApiResponse<T> wrapper
+- Proper HTTP status codes (200, 201, 400, 404, 500)
+- Comprehensive input validation
+- Rate limiting and caching where appropriate
 
-Generate complete API with proper error handling and documentation.
+The build system automatically includes (based on feature flags):
+- ASP.NET Core packages for APIs
+- Swagger/OpenAPI (IncludeSwagger=true)
+- Health checks (IncludeHealthChecks=true)
+- Rate limiting (IncludeRateLimiting=true)
+- API versioning (IncludeApiVersioning=true)
+
+Generate complete API with:
+1. Controller classes with CRUD operations
+2. Minimal API endpoint definitions
+3. Request/response DTO classes
+4. Input validation attributes
+5. OpenAPI documentation attributes
+6. Global exception handling
+7. Health check endpoints
+
+Include proper error handling, logging, and security.
 ```
 
-## 3. Cursor Code Generation Workflows
+---
 
-### **A. Entity Creation Workflow**
-When creating a new entity, use this Cursor prompt:
+## 📦 Centralized Package Management
 
-```prompt
-Create a new entity [EntityName] for the [YourDomain] microservice using BuildingBlocks patterns:
+### **How It Works**
+1. **Project Type Detection**: Build system automatically detects project types
+2. **Feature-Based Inclusion**: Packages included based on enabled features
+3. **Smart Defaults**: Sensible defaults for each project type
+4. **Override Capability**: Can disable features per project
 
-1. **Domain Entity**: 
-   - Strongly-typed ID: [EntityName]Id
-   - Value objects for complex properties
-   - Domain events for state changes
-   - Business rules validation
+### **Package Categories by Project Type**
 
-2. **Application Layer**:
-   - Commands: Create, Update, Delete
-   - Queries: GetById, GetPaged, Search
-   - DTOs with proper mapping
-   - Validators using FluentValidation
-
-3. **Infrastructure**:
-   - Repository interface and implementation
-   - EF Core entity configuration
-   - Database migration
-
-4. **API Layer**:
-   - Controller with full CRUD
-   - Minimal API endpoints
-   - Proper response models
-   - OpenAPI documentation
-
-Generate all layers following the established patterns and include comprehensive error handling.
+#### 🏛️ Domain Projects
+```
+✅ Always Included:
+- Microsoft.Extensions.DependencyInjection.Abstractions
+- Microsoft.Extensions.Logging.Abstractions
+- Microsoft.Extensions.Configuration.Abstractions
+- System.ComponentModel.Annotations
 ```
 
-### **B. Feature Development Workflow**
-For adding new features:
+#### ⚙️ Application Projects
+```
+✅ Always Included:
+- Core packages (from Domain)
+- Microsoft.Extensions.Hosting.Abstractions
+- Microsoft.Extensions.Caching.Abstractions
 
-```prompt
-Add [FeatureName] feature to [YourDomain] microservice using BuildingBlocks:
-
-Business Requirements:
-- [Requirement 1]
-- [Requirement 2]
-- [Requirement 3]
-
-Generate:
-1. Domain changes (entities, value objects, events, rules)
-2. Application commands/queries with handlers
-3. Infrastructure updates (repositories, configurations)
-4. API endpoints with proper documentation
-5. Integration tests
-
-Follow all BuildingBlocks patterns and ensure proper error handling, validation, and logging.
+🎛️ Feature-Based:
+- FluentValidation (IncludeValidation=true)
+- FluentValidation.DependencyInjectionExtensions
 ```
 
-## 4. Cursor Workspace Configuration
+#### 🔧 Infrastructure Projects
+```
+✅ Always Included:
+- Core packages
+- Microsoft.Extensions.Options
+- Microsoft.Extensions.Http
 
-### **A. Create .cursor/ Configuration**
-```json
-// .cursor/settings.json
-{
-  "buildingBlocks.templatePath": "./templates",
-  "buildingBlocks.snippetsPath": "./snippets",
-  "codeGeneration.patterns": [
-    "Domain-First",
-    "CQRS",
-    "Clean Architecture"
-  ]
-}
+🎛️ Feature-Based (examples):
+- EF Core packages (IncludeEntityFramework=true)
+- Redis caching (IncludeCaching=true)
+- JWT authentication (IncludeAuthentication=true)
+- AutoMapper/Mapster (IncludeMapping=true)
+- Hangfire (IncludeBackgroundServices=true)
+- Service Bus/RabbitMQ (IncludeMessaging=true)
+- OpenTelemetry (IncludeMonitoring=true)
 ```
 
-### **B. Code Snippets for Common Patterns**
-Create snippets for BuildingBlocks patterns:
+#### 🌐 API Projects
+```
+✅ Always Included:
+- ASP.NET Core packages
+- Microsoft.AspNetCore.OpenApi
+- Microsoft.AspNetCore.Authentication.JwtBearer
+- Microsoft.AspNetCore.Authorization
+- Microsoft.AspNetCore.Cors
 
-```json
-// .cursor/snippets/domain.json
-{
-  "Strongly Typed ID": {
-    "prefix": "stid",
-    "body": [
-      "public readonly struct ${1:EntityName}Id : IStronglyTypedId<Guid>",
-      "{",
-      "    public Guid Value { get; }",
-      "    ",
-      "    public ${1:EntityName}Id(Guid value) => Value = value;",
-      "    ",
-      "    public static ${1:EntityName}Id New() => new(Guid.NewGuid());",
-      "    public static ${1:EntityName}Id Empty => new(Guid.Empty);",
-      "    ",
-      "    public static implicit operator Guid(${1:EntityName}Id id) => id.Value;",
-      "    public static explicit operator ${1:EntityName}Id(Guid value) => new(value);",
-      "}"
-    ]
-  }
-}
+🎛️ Feature-Based:
+- Swagger packages (IncludeSwagger=true)
+- Health checks (IncludeHealthChecks=true)
+- Rate limiting (IncludeRateLimiting=true)
+- API versioning (IncludeApiVersioning=true)
 ```
 
-### **C. Project Templates**
-Create project templates for common scenarios:
-
+#### 🧪 Test Projects
 ```
-Templates/
-├── Microservice/
-│   ├── template.json
-│   └── content/
-├── Feature/
-│   ├── template.json
-│   └── content/
-└── Entity/
-    ├── template.json
-    └── content/
+✅ Always Included:
+- coverlet.collector
+- coverlet.msbuild
+
+🎛️ Feature-Based:
+- Microsoft.NET.Test.Sdk (IncludeTestFramework=true)
+- xunit
+- xunit.runner.visualstudio
 ```
 
-## 5. Development Workflow Examples
+---
 
-### **A. Creating a New Microservice**
-1. **Use Cursor AI**: "Create a new microservice for [Domain] using BuildingBlocks"
-2. **Generate Structure**: Domain → Application → Infrastructure → API
-3. **Configure Dependencies**: Add BuildingBlocks NuGet references
-4. **Implement Features**: Use feature-specific prompts
-5. **Add Tests**: Generate tests using BuildingBlocks test patterns
+## 🛠️ Advanced Configuration
 
-### **B. Adding New Features**
-1. **Domain First**: Start with domain modeling using Cursor AI
-2. **Application Layer**: Generate CQRS handlers and DTOs
-3. **Infrastructure**: Update repositories and configurations
-4. **API Layer**: Add endpoints with proper validation
-5. **Testing**: Generate integration and unit tests
-
-### **C. Code Review with AI**
-Use Cursor AI to review code against BuildingBlocks patterns:
-
-```prompt
-Review this code for compliance with BuildingBlocks patterns:
-- Domain: Proper entity design, value objects, domain events
-- Application: CQRS implementation, validation, error handling
-- Infrastructure: Repository pattern, EF configuration
-- API: Response formats, error handling, documentation
-
-Suggest improvements and identify any pattern violations.
+### **A. Per-Project Feature Override**
+```xml
+<!-- In YourService.Infrastructure.csproj -->
+<PropertyGroup>
+  <!-- This infrastructure project doesn't need messaging -->
+  <IncludeMessaging>false</IncludeMessaging>
+  
+  <!-- But we want cloud storage -->
+  <IncludeCloudStorage>true</IncludeCloudStorage>
+</PropertyGroup>
 ```
 
-## 6. Advanced Cursor Integration
+### **B. Solution-Wide Configuration**
+```xml
+<!-- In Directory.Build.props -->
+<PropertyGroup>
+  <!-- Disable for entire solution -->
+  <IncludeCloudStorage>false</IncludeCloudStorage>
+  <IncludeEmailServices>false</IncludeEmailServices>
+  
+  <!-- Enable modern features -->
+  <IncludeMonitoring>true</IncludeMonitoring>
+  <IncludeSecurity>true</IncludeSecurity>
+</PropertyGroup>
+```
 
-### **A. Custom Code Actions**
-Create custom code actions for common BuildingBlocks operations:
-- Generate entity with all layers
-- Add CQRS command/query
-- Create repository implementation
-- Generate API endpoint
+### **C. Environment-Specific Configuration**
+```xml
+<!-- Different features for different environments -->
+<PropertyGroup Condition="'$(Environment)' == 'Development'">
+  <IncludeSwagger>true</IncludeSwagger>
+  <IncludeHealthChecks>true</IncludeHealthChecks>
+</PropertyGroup>
 
-### **B. Automated Refactoring**
-Use Cursor AI for:
-- Converting primitive properties to value objects
-- Adding domain events to entities
-- Implementing missing validation
-- Updating API responses to use ApiResponse<T>
+<PropertyGroup Condition="'$(Environment)' == 'Production'">
+  <IncludeSwagger>false</IncludeSwagger>
+  <IncludeMonitoring>true</IncludeMonitoring>
+</PropertyGroup>
+```
 
-### **C. Documentation Generation**
-Automatically generate:
-- API documentation from endpoints
-- Domain model documentation
-- Architecture decision records
-- Migration guides
+### **D. Custom Build Targets**
+```xml
+<!-- Add to Directory.Build.targets -->
+<Target Name="CustomPackageSelection" BeforeTargets="CollectPackageReferences">
+  <ItemGroup Condition="'$(MSBuildProjectName.Contains('Legacy'))">
+    <!-- Legacy projects get minimal packages -->
+    <PackageReference Include="LegacyCompatibility.Package" />
+  </ItemGroup>
+</Target>
+```
 
-## 7. Best Practices for Cursor Usage
+---
 
-### **A. Prompt Engineering**
-- Always reference BuildingBlocks patterns
-- Provide specific requirements and constraints
-- Ask for complete implementations with tests
-- Request adherence to coding standards
+## 📚 Best Practices
 
-### **B. Code Organization**
-- Keep BuildingBlocks as separate solution
-- Use consistent naming conventions
-- Maintain clear separation of concerns
-- Document deviations from patterns
+### **A. Project Naming Conventions**
+```
+✅ Good Naming (Auto-detected):
+- YourService.Domain
+- YourService.Application  
+- YourService.Infrastructure
+- YourService.API
+- YourService.Tests
+- YourService.IntegrationTests
 
-### **C. Continuous Integration**
-- Automate BuildingBlocks updates
-- Validate pattern compliance in CI/CD
-- Generate and publish NuGet packages
-- Maintain backward compatibility
+❌ Avoid (Won't auto-detect):
+- YourService.Core (use .Domain)
+- YourService.Services (use .Application)
+- YourService.Data (use .Infrastructure)
+- YourService.Web (use .API)
+```
 
-This approach transforms your BuildingBlocks into a powerful development accelerator within Cursor, enabling rapid creation of consistent, well-architected microservices. 
+### **B. Feature Flag Strategy**
+```xml
+<!-- Start with defaults, then disable what you don't need -->
+<PropertyGroup>
+  <!-- Common disables for lightweight services -->
+  <IncludeMessaging>false</IncludeMessaging>
+  <IncludeBackgroundServices>false</IncludeBackgroundServices>
+  <IncludeCloudStorage>false</IncludeCloudStorage>
+  <IncludeEmailServices>false</IncludeEmailServices>
+</PropertyGroup>
+```
+
+### **C. Development Workflow**
+1. **Create Project Structure**: Use naming conventions for auto-detection
+2. **Configure Features**: Enable/disable features in Directory.Build.props
+3. **Add BuildingBlocks References**: Reference the foundation projects
+4. **Generate Code**: Use AI prompts with BuildingBlocks patterns
+5. **Build & Test**: Packages are included automatically
+
+### **D. Code Review Checklist**
+- ✅ No manual package references in .csproj files
+- ✅ Project names follow conventions for auto-detection
+- ✅ Feature flags are used appropriately
+- ✅ BuildingBlocks patterns are followed
+- ✅ Code analysis rules are satisfied
+
+### **E. Performance Optimization**
+```xml
+<!-- For high-performance services -->
+<PropertyGroup>
+  <!-- Disable heavy features -->
+  <IncludeSwagger>false</IncludeSwagger>
+  <IncludeMonitoring>false</IncludeMonitoring>
+  
+  <!-- Enable essentials only -->
+  <IncludeCaching>true</IncludeCaching>
+  <IncludeSerialization>true</IncludeSerialization>
+</PropertyGroup>
+```
+
+---
+
+## 🎯 Migration from Manual Package Management
+
+### **Step 1: Backup Current State**
+```bash
+# Create backup branch
+git checkout -b backup-before-centralized-packages
+git add -A && git commit -m "Backup before centralized package migration"
+```
+
+### **Step 2: Copy Build Files**
+Copy `Directory.Build.props`, `Directory.Build.targets`, and `BuildingBlocks.ruleset` from BuildingBlocks solution.
+
+### **Step 3: Remove Manual Package References**
+Remove all `<PackageReference>` elements from .csproj files (except project-specific ones).
+
+### **Step 4: Configure Features**
+Set feature flags in Directory.Build.props based on your needs.
+
+### **Step 5: Test Build**
+```bash
+dotnet clean
+dotnet restore
+dotnet build
+```
+
+### **Step 6: Verify Functionality**
+Run tests and verify all expected packages are included.
+
+---
+
+This centralized approach transforms BuildingBlocks into a powerful, maintainable development platform that automatically manages dependencies while providing fine-grained control over features and packages. 

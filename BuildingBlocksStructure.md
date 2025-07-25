@@ -1,17 +1,155 @@
 # BuildingBlocks Architecture Structure
 
 ## Overview
-This document outlines the complete architecture and file structure of the BuildingBlocks library - a comprehensive foundation for .NET microservices following Domain-Driven Design (DDD), Clean Architecture, and CQRS patterns.
+This document outlines the complete architecture and file structure of the BuildingBlocks library - a comprehensive foundation for .NET microservices following Domain-Driven Design (DDD), Clean Architecture, and CQRS patterns with centralized package management and modern build configuration.
 
 ## 📋 Table of Contents
-- [🏗️ Domain Layer](#-domain-layer)
+- [🏗️ Build Configuration](#-build-configuration)
+- [🔗 Centralized Package Management](#-centralized-package-management)
+- [🏛️ Domain Layer](#-domain-layer)
 - [⚙️ Application Layer](#-application-layer)
 - [🔧 Infrastructure Layer](#-infrastructure-layer)
 - [🌐 API Layer](#-api-layer)
+- [🚀 Services Example](#-services-example)
+- [📚 Documentation](#-documentation)
 
 ---
 
-## 🏗️ Domain Layer
+## 🏗️ Build Configuration
+**Centralized build configuration across the entire solution**
+
+### 📄 Root Configuration Files
+```
+├── Directory.Build.props       # Global properties and feature flags
+├── Directory.Build.targets     # Centralized package management
+├── Directory.Packages.props    # Central Package Management (CPM)
+├── global.json                 # .NET SDK version
+├── BuildingBlocks.ruleset      # Code analysis rules
+├── coverlet.runsettings        # Code coverage settings
+└── VibeMicro.sln              # Solution file
+```
+
+### 🎛️ Build Properties (Directory.Build.props)
+```
+Common Properties:
+├── TargetFramework: net8.0
+├── LangVersion: latest
+├── ImplicitUsings: enable
+├── Nullable: enable
+├── TreatWarningsAsErrors: true
+└── UseArtifactsOutput: true
+
+Package Information:
+├── Company: VibeMicro
+├── Product: BuildingBlocks
+├── Authors: VibeMicro Team
+├── PackageLicenseExpression: MIT
+└── RepositoryUrl: https://github.com/vibemicro/buildingblocks
+
+Version Management:
+├── VersionPrefix: 1.0.0
+├── AssemblyVersion: 1.0.0.0
+├── FileVersion: 1.0.0.0
+└── InformationalVersion: Auto-generated
+
+Source Code Analysis:
+├── EnableNETAnalyzers: true
+├── AnalysisLevel: latest
+├── AnalysisMode: AllEnabledByDefault
+└── RunAnalyzersDuringBuild: true
+
+Project Type Detection:
+├── IsApiProject: Auto-detected
+├── IsInfrastructureProject: Auto-detected
+├── IsDomainProject: Auto-detected
+├── IsApplicationProject: Auto-detected
+├── IsTestProject: Auto-detected
+└── IsBenchmarkProject: Auto-detected
+```
+
+---
+
+## 🔗 Centralized Package Management
+**All package references managed centrally through build targets**
+
+### 🎯 Feature Control Properties
+*Enable/disable functionality via MSBuild properties*
+
+```xml
+<!-- Global Features -->
+<IncludeValidation>true</IncludeValidation>
+<IncludeSerialization>true</IncludeSerialization>
+<IncludeHttpClient>true</IncludeHttpClient>
+<IncludeSecurity>true</IncludeSecurity>
+
+<!-- Infrastructure Features -->
+<IncludeEntityFramework>true</IncludeEntityFramework>
+<IncludeCaching>true</IncludeCaching>
+<IncludeAuthentication>true</IncludeAuthentication>
+<IncludeMapping>true</IncludeMapping>
+<IncludeBackgroundServices>true</IncludeBackgroundServices>
+<IncludeMessaging>true</IncludeMessaging>
+<IncludeMonitoring>true</IncludeMonitoring>
+<IncludeCloudStorage>true</IncludeCloudStorage>
+<IncludeEmailServices>true</IncludeEmailServices>
+
+<!-- API Features -->
+<IncludeSwagger>true</IncludeSwagger>
+<IncludeHealthChecks>true</IncludeHealthChecks>
+<IncludeApiVersioning>true</IncludeApiVersioning>
+<IncludeRateLimiting>true</IncludeRateLimiting>
+
+<!-- Tooling Features -->
+<IsSourceLinkSupported>true</IsSourceLinkSupported>
+<UseMinVer>true</UseMinVer>
+```
+
+### 📦 Package Categories by Project Type
+
+#### All Projects (Core)
+- Microsoft.Extensions.DependencyInjection.Abstractions
+- Microsoft.Extensions.Logging.Abstractions
+- Microsoft.Extensions.Configuration.Abstractions
+- System.ComponentModel.Annotations
+
+#### Domain Projects
+- Core packages only (minimal dependencies)
+
+#### Application Projects  
+- Core packages + Hosting abstractions
+- Caching abstractions
+- FluentValidation (if enabled)
+
+#### Infrastructure Projects
+- Entity Framework Core
+- Caching (Memory, Redis)
+- Authentication & Authorization
+- Mapping (AutoMapper, Mapster)
+- Serialization (JSON, Protobuf, MessagePack)
+- Background Services (Hangfire)
+- Messaging (Azure Service Bus, RabbitMQ)
+- Monitoring (OpenTelemetry, Health Checks)
+- Cloud Storage (Azure, AWS)
+- Email Services (MailKit)
+- HTTP Client with Polly
+
+#### API Projects
+- ASP.NET Core packages
+- OpenAPI/Swagger
+- Validation
+- Rate Limiting
+- Health Checks
+- Security
+- Monitoring
+
+#### Test Projects
+- xUnit framework
+- Coverlet for code coverage
+- Test SDK
+
+---
+
+## 🏛️ Domain Layer
 **BuildingBlocks.Domain** - Core business logic and domain models following DDD principles.
 
 ### 📁 Entities
@@ -79,7 +217,8 @@ This document outlines the complete architecture and file structure of the Build
 ├── BusinessRuleValidationException.cs   # Rule violation
 ├── AggregateNotFoundException.cs        # Entity not found
 ├── ConcurrencyException.cs              # Optimistic concurrency
-└── InvalidOperationDomainException.cs   # Invalid operations
+├── InvalidOperationDomainException.cs   # Invalid operations
+└── InvariantViolationException.cs       # Invariant violations
 ```
 
 ### 📏 Business Rules
@@ -90,20 +229,47 @@ This document outlines the complete architecture and file structure of the Build
 └── CompositeBusinessRule.cs    # Rule composition
 ```
 
-### 🔧 Common
+### 🛡️ Guards
+*Defensive programming utilities*
+```
+├── Guard.cs                    # Guard utility class
+└── GuardExtensions.cs          # Guard extension methods
+```
+
+### 🔧 Common Value Objects
 *Shared value objects and utilities*
 ```
 ├── Money.cs                    # Money with currency
+├── Currency.cs                 # Currency value object
 ├── DateRange.cs               # Date range value object
 ├── Address.cs                 # Address value object
 ├── Email.cs                   # Email value object
-└── PhoneNumber.cs             # Phone value object
+├── PhoneNumber.cs             # Phone value object
+├── Percentage.cs              # Percentage value object
+└── Url.cs                     # URL value object
+```
+
+### ✅ Validation
+*Domain validation framework*
+```
+├── IDomainValidator.cs         # Domain validator interface
+├── DomainValidatorBase.cs      # Base domain validator
+├── ValidationError.cs          # Validation error details
+└── ValidationResult.cs         # Validation result
+```
+
+### 🔧 Services
+*Domain services for complex business logic*
+```
+├── IDomainService.cs           # Domain service interface
+└── DomainServiceBase.cs        # Base domain service
 ```
 
 ### 🛠️ Extensions
 *Domain utility methods*
 ```
-└── DomainExtensions.cs         # Domain object extensions
+├── DomainExtensions.cs         # Domain object extensions
+└── JsonExtensions.cs           # JSON serialization extensions
 ```
 
 ---
@@ -173,6 +339,8 @@ This document outlines the complete architecture and file structure of the Build
 ├── ApplicationServiceBase.cs  # Base application service
 ├── IDomainEventService.cs     # Domain event service interface
 ├── DomainEventService.cs      # Domain event service implementation
+├── IServiceContext.cs         # Service context interface
+├── ServiceContext.cs          # Service context implementation
 ├── OutboxBackgroundService.cs # Outbox pattern background service
 └── InboxBackgroundService.cs  # Inbox pattern background service
 ```
@@ -180,49 +348,31 @@ This document outlines the complete architecture and file structure of the Build
 ### ✅ Validation
 *Input validation framework*
 ```
-├── IValidator.cs              # Validator interface
-├── IValidationRule.cs         # Validation rule interface
-├── ValidationResult.cs        # Validation result
-├── ValidationError.cs         # Validation error details
-├── CompositeValidator.cs      # Composite validation
-└── ValidatorBase.cs           # Base validator implementation
+└── IValidator.cs              # Validator interface
 ```
 
 ### 💾 Caching
 *Application-level caching abstractions*
 ```
-├── ICacheService.cs           # Cache service interface
-├── ICacheKey.cs               # Cache key interface
-├── CacheKey.cs                # Cache key implementation
-├── CacheSettings.cs           # Cache configuration
-└── CachePolicy.cs             # Cache policies
+└── ICacheService.cs           # Cache service interface
 ```
 
 ### 📨 Messaging
-*Message bus and event bus abstractions*
+*Message bus abstractions*
 ```
-├── IMessageBus.cs             # Message bus interface
-├── IEventBus.cs               # Event bus interface
-├── IMessageHandler.cs         # Message handler interface
-├── IMessagePublisher.cs       # Message publisher interface
-└── MessageMetadata.cs         # Message metadata
+└── IMessageBus.cs             # Message bus interface
 ```
 
 ### 📊 DTOs
 *Data Transfer Objects*
 ```
-├── BaseDto.cs                 # Base DTO
-├── AuditableDto.cs           # Auditable DTO
-└── PagedDto.cs               # Paged DTO
+└── BaseDto.cs                 # Base DTO
 ```
 
 ### 🔐 Security
 *Security context and user information*
 ```
-├── ICurrentUserService.cs     # Current user service
-├── IPermissionService.cs      # Permission service
-├── UserContext.cs             # User context
-└── SecurityContext.cs         # Security context
+└── ICurrentUser.cs            # Current user service
 ```
 
 ### 📥 Inbox
@@ -270,15 +420,15 @@ This document outlines the complete architecture and file structure of the Build
 *Idempotent operation support*
 ```
 ├── IIdempotencyService.cs     # Idempotency service interface
-└── IdempotencyOptions.cs      # Idempotency configuration
+├── IdempotencyOptions.cs      # Idempotency configuration
+└── IdempotencyRecord.cs       # Idempotency record
 ```
 
 ### 🛠️ Extensions
 *Application layer extensions*
 ```
 ├── ServiceCollectionExtensions.cs # DI registration
-├── ApplicationExtensions.cs        # Application extensions
-└── MediatorExtensions.cs           # Mediator extensions
+└── QueryableExtensions.cs         # Queryable extensions
 ```
 
 ---
@@ -289,25 +439,23 @@ This document outlines the complete architecture and file structure of the Build
 ### 🗄️ Data
 *Data access and persistence*
 
-#### Repositories
-```
-├── Repository.cs              # Generic repository implementation
-├── ReadOnlyRepository.cs      # Read-only repository implementation
-└── RepositoryBase.cs          # Base repository functionality
-```
-
-#### Unit of Work
-```
-├── UnitOfWork.cs              # Unit of work implementation
-└── IDbTransaction.cs          # Database transaction interface
-```
-
 #### Context
 ```
 ├── IDbContext.cs              # Database context interface
 ├── ApplicationDbContext.cs    # Application database context
 ├── DbContextBase.cs           # Base database context
 └── IDbContextFactory.cs       # Database context factory
+```
+
+#### Repositories
+```
+├── Repository.cs              # Generic repository implementation
+└── ReadOnlyRepository.cs      # Read-only repository implementation
+```
+
+#### Unit of Work
+```
+└── UnitOfWork.cs              # Unit of work implementation
 ```
 
 #### Migrations
@@ -340,47 +488,21 @@ This document outlines the complete architecture and file structure of the Build
 ### 💾 Caching
 *Caching implementations*
 ```
-├── ICacheService.cs           # Cache service interface
-├── MemoryCacheService.cs      # In-memory cache implementation
 ├── DistributedCacheService.cs # Distributed cache implementation
+├── InMemoryCacheService.cs    # In-memory cache implementation
+├── MemoryCacheService.cs      # Memory cache implementation
 ├── RedisCacheService.cs       # Redis cache implementation
 ├── CacheKeyGenerator.cs       # Cache key generation
 └── CacheConfiguration.cs      # Cache configuration
 ```
 
 ### 📨 Messaging
-*Message bus and event bus implementations*
+*Message bus implementations*
 
 #### Message Bus
 ```
 ├── IMessageBus.cs             # Message bus interface
-├── InMemoryMessageBus.cs      # In-memory message bus
-├── ServiceBusMessageBus.cs    # Azure Service Bus implementation
-└── RabbitMQMessageBus.cs      # RabbitMQ implementation
-```
-
-#### Event Bus
-```
-├── IEventBus.cs               # Event bus interface
-├── InMemoryEventBus.cs        # In-memory event bus
-├── ServiceBusEventBus.cs      # Azure Service Bus event bus
-└── RabbitMQEventBus.cs        # RabbitMQ event bus
-```
-
-#### Publishers
-```
-├── IMessagePublisher.cs       # Message publisher interface
-├── MessagePublisherBase.cs    # Base message publisher
-├── ServiceBusPublisher.cs     # Azure Service Bus publisher
-└── RabbitMQPublisher.cs       # RabbitMQ publisher
-```
-
-#### Subscribers
-```
-├── IMessageSubscriber.cs      # Message subscriber interface
-├── MessageSubscriberBase.cs   # Base message subscriber
-├── ServiceBusSubscriber.cs    # Azure Service Bus subscriber
-└── RabbitMQSubscriber.cs      # RabbitMQ subscriber
+└── InMemoryMessageBus.cs      # In-memory message bus
 ```
 
 #### Serialization
@@ -392,138 +514,36 @@ This document outlines the complete architecture and file structure of the Build
 
 #### Configuration
 ```
-├── MessageBusConfiguration.cs # Message bus configuration
-├── ServiceBusConfiguration.cs # Azure Service Bus configuration
-└── RabbitMQConfiguration.cs   # RabbitMQ configuration
+└── MessageBusConfiguration.cs # Message bus configuration
 ```
 
-### 📝 Logging
-*Logging and observability*
-```
-├── ILoggerService.cs          # Logger service interface
-├── LoggerService.cs           # Logger service implementation
-├── OpenTelemetry/             # OpenTelemetry integration
-├── Structured/                # Structured logging
-└── [Additional logging components]
-```
-
-### 🔐 Authentication
-*Authentication providers*
-```
-├── JWT/                       # JWT authentication
-├── OAuth/                     # OAuth authentication
-├── ApiKey/                    # API key authentication
-└── Identity/                  # Identity management
-```
-
-### 🛡️ Authorization
-*Authorization services*
-```
-├── IAuthorizationService.cs   # Authorization service
-├── AuthorizationService.cs    # Authorization implementation
-├── Policies/                  # Authorization policies
-├── Handlers/                  # Authorization handlers
-└── Requirements/              # Authorization requirements
-```
-
-### 💾 Storage
-*File and blob storage*
-```
-├── Files/                     # File storage services
-├── Blobs/                     # Blob storage services
-└── Documents/                 # Document storage services
-```
-
-### 📞 Communication
-*Communication services*
-```
-├── Email/                     # Email services
-├── SMS/                       # SMS services
-├── Push/                      # Push notification services
-└── Notifications/             # General notification services
-```
-
-### 📊 Monitoring
-*Health checks and monitoring*
-```
-├── Health/                    # Health check services
-├── Metrics/                   # Metrics collection
-├── Tracing/                   # Distributed tracing
-└── Performance/               # Performance monitoring
-```
-
-### ⚙️ Background Services
-*Background task processing*
-```
-├── IBackgroundTaskService.cs  # Background task service
-├── BackgroundTaskService.cs   # Background task implementation
-├── Queues/                    # Background queues
-├── Jobs/                      # Job scheduling
-└── Workers/                   # Worker services
-```
-
-### 🌐 External
-*External service integrations*
-```
-├── HttpClients/               # HTTP client services
-├── APIs/                      # External API integrations
-└── ThirdParty/                # Third-party integrations
-```
-
-### 🔒 Security
+### 🔐 Security
 *Security implementations*
-```
-├── Encryption/                # Encryption services
-├── Hashing/                   # Hashing services
-├── KeyManagement/             # Key management
-└── Secrets/                   # Secrets management
-```
 
-### ✅ Validation
-*Validation implementations*
+#### Encryption
 ```
-├── FluentValidation/          # FluentValidation implementation
-├── DataAnnotations/           # Data annotations validation
-└── Custom/                    # Custom validation
+└── IEncryptionService.cs      # Encryption service interface
 ```
 
 ### 📄 Serialization
 *Serialization services*
+
+#### Json
 ```
-├── Json/                      # JSON serialization
-├── Xml/                       # XML serialization
-├── Binary/                    # Binary serialization
-└── Csv/                       # CSV serialization
+└── JsonSerializationService.cs # JSON serialization service
 ```
 
 ### 🔄 Idempotency
 *Idempotency implementation*
 ```
 ├── IdempotencyEntity.cs       # Idempotency entity
-├── IIdempotencyRepository.cs  # Idempotency repository
-├── IdempotencyProcessor.cs    # Idempotency processor
-├── IdempotencyMiddleware.cs   # Idempotency middleware
-└── IdempotencyConfiguration.cs # Idempotency configuration
-```
-
-### ⚙️ Configuration
-*Configuration management*
-```
-├── IConfigurationService.cs   # Configuration service
-├── ConfigurationService.cs    # Configuration implementation
-├── Settings/                  # Application settings
-├── Providers/                 # Configuration providers
-└── Validation/                # Configuration validation
+└── IIdempotencyRepository.cs  # Idempotency repository
 ```
 
 ### 🛠️ Extensions
 *Infrastructure extensions*
 ```
-├── ServiceCollectionExtensions.cs    # DI registration
-├── ApplicationBuilderExtensions.cs   # Application builder extensions
-├── HostBuilderExtensions.cs          # Host builder extensions
-├── [Additional extensions...]
-└── InfrastructureExtensions.cs       # General infrastructure extensions
+└── ServiceCollectionExtensions.cs # DI registration
 ```
 
 ---
@@ -536,21 +556,13 @@ This document outlines the complete architecture and file structure of the Build
 
 #### Base
 ```
-├── EndpointBase.cs            # Base endpoint class
 ├── CrudEndpoints.cs           # CRUD endpoint patterns
 └── QueryEndpoints.cs          # Query endpoint patterns
 ```
 
 #### Extensions
 ```
-├── EndpointRouteBuilderExtensions.cs # Route builder extensions
-└── MinimalApiExtensions.cs           # Minimal API extensions
-```
-
-#### Conventions
-```
-├── ApiEndpointConvention.cs          # API endpoint conventions
-└── VersioningEndpointConvention.cs   # Versioning conventions
+└── MinimalApiExtensions.cs    # Minimal API extensions
 ```
 
 ### 🛡️ Middleware
@@ -560,7 +572,8 @@ This document outlines the complete architecture and file structure of the Build
 ```
 ├── GlobalExceptionMiddleware.cs # Global exception handling
 ├── ErrorResponse.cs            # Error response models
-└── ProblemDetailsFactory.cs    # RFC 7807 problem details
+├── ProblemDetailsFactory.cs    # RFC 7807 problem details
+└── ExceptionHandlingExtensions.cs # Exception handling extensions
 ```
 
 #### Logging
@@ -569,122 +582,183 @@ This document outlines the complete architecture and file structure of the Build
 └── CorrelationIdMiddleware.cs  # Correlation ID handling
 ```
 
-#### Security
-```
-├── SecurityHeadersMiddleware.cs # Security headers
-└── RateLimitingMiddleware.cs    # Rate limiting
-```
-
 ### 📊 Responses
 *API response models*
 
 #### Base
 ```
 ├── ApiResponse.cs             # Standard API response
-├── PagedResponse.cs           # Paged response wrapper
-└── ErrorResponse.cs           # Error response model
+└── PagedResponse.cs           # Paged response wrapper
 ```
 
 #### Builders
 ```
-├── ApiResponseBuilder.cs      # Response builder
-└── ErrorResponseBuilder.cs    # Error response builder
-```
-
-### 🔐 Authentication
-*API authentication*
-```
-├── JWT/                       # JWT authentication for APIs
-└── ApiKey/                    # API key authentication
-```
-
-### ✅ Validation
-*Request validation*
-```
-├── Validators/                # Request validators
-├── Extensions/                # Validation extensions
-└── Results/                   # Validation results
-```
-
-### 📚 OpenAPI
-*API documentation*
-```
-├── Configuration/             # OpenAPI configuration
-├── Filters/                   # Swagger filters
-└── Extensions/                # OpenAPI extensions
-```
-
-### 🔢 Versioning
-*API versioning*
-```
-├── Extensions/                # Versioning extensions
-└── Conventions/               # Versioning conventions
-```
-
-### 🏥 Health
-*Health check endpoints*
-```
-├── Extensions/                # Health check extensions
-└── Reporters/                 # Health reporters
+└── ApiResponseBuilder.cs      # Response builder
 ```
 
 ### ⚙️ Configuration
 *API configuration*
+
+#### Options
 ```
-├── Options/                   # Configuration options
-└── Extensions/                # Configuration extensions
+└── ApiOptions.cs              # API configuration options
+```
+
+### 🔧 Utilities
+*API utilities and helpers*
+
+#### Constants
+```
+└── ApiConstants.cs            # API constants
 ```
 
 ### 🛠️ Extensions
 *API layer extensions*
 ```
-├── ApiExtensions.cs           # General API extensions
-├── AuthenticationExtensions.cs # Authentication extensions
-├── CorsExtensions.cs          # CORS extensions
-├── [Additional extensions...]
-└── ResponseExtensions.cs      # Response extensions
-```
-
-### 🔧 Utilities
-*API utilities and helpers*
-```
-├── Helpers/                   # Helper classes
-├── Constants/                 # API constants
-└── Factories/                 # Factory classes
+├── EndpointExtensions.cs            # Endpoint extensions
+├── EndpointRouteBuilderExtensions.cs # Route builder extensions
+├── ServiceCollectionExtensions.cs   # DI registration
+└── WebApplicationExtensions.cs      # Web application extensions
 ```
 
 ---
 
-## 🎯 Key Features
+## 🚀 Services Example
+**AuthService** - Example microservice implementation using BuildingBlocks
 
-### ✨ Domain Layer
-- **Strongly-typed IDs** using readonly structs
-- **Value Objects** with validation
+### 📁 Structure
+```
+Services/
+└── AuthService/
+    ├── API/                    # API layer
+    │   ├── Endpoints/          # API endpoints
+    │   ├── Program.cs          # Application entry point
+    │   └── appsettings.json    # Configuration
+    ├── Application/            # Application layer
+    │   ├── Commands/           # Command handlers
+    │   ├── Queries/            # Query handlers
+    │   ├── Events/             # Event handlers
+    │   ├── Validation/         # Input validation
+    │   ├── Behaviors/          # Custom behaviors
+    │   ├── Services/           # Application services
+    │   └── Caching/            # Cache keys
+    ├── Domain/                 # Domain layer
+    │   ├── Entities/           # Domain entities
+    │   ├── ValueObjects/       # Value objects
+    │   ├── StronglyTypedIds/   # Typed identifiers
+    │   ├── DomainEvents/       # Domain events
+    │   ├── Events/             # Integration events
+    │   ├── BusinessRules/      # Business rules
+    │   ├── Specifications/     # Query specifications
+    │   ├── Repositories/       # Repository interfaces
+    │   ├── Services/           # Domain service interfaces
+    │   └── Exceptions/         # Domain exceptions
+    └── Infrastructure/         # Infrastructure layer
+        ├── Data/               # Data access
+        ├── Repositories/       # Repository implementations
+        ├── Services/           # Domain service implementations
+        ├── Authentication/     # Auth implementations
+        ├── Health/             # Health checks
+        ├── Inbox/              # Inbox implementation
+        └── Outbox/             # Outbox implementation
+```
+
+### 🎯 Key Features
+- **Clean Architecture**: Clear separation of concerns
+- **CQRS Pattern**: Command/Query separation
+- **Domain Events**: Business state change notifications
+- **Strongly Typed IDs**: Type-safe identifiers
+- **Repository Pattern**: Data access abstraction
+- **Specifications**: Encapsulated query logic
+- **Inbox/Outbox**: Reliable messaging patterns
+
+---
+
+## 📚 Documentation
+**Comprehensive documentation and guides**
+
+### 📖 Main Documentation
+```
+├── README.md                           # Main project overview
+├── BuildingBlocksStructure.md         # This file - architecture overview
+├── BuildingBlocks-Usage-Guide.md      # Usage guide and examples
+└── README-CentralizedPackageManagement.md # Package management guide
+```
+
+### 📋 Specialized Guides
+```
+├── README-MinimalAPIUsage.md          # Minimal API usage patterns
+├── README-ProblemDetailsMiddleware.md # Error handling guide
+├── README-ServiceStructure.md         # Service layer structure
+└── README-StronglyTypedIdJsonConverters.md # JSON converter guide
+```
+
+### 📊 Analysis & Planning
+```
+└── Domain-Library-Gap-Analysis.md     # Gap analysis documentation
+```
+
+### 🏗️ Generation Prompts
+```
+GenerationPrompts/
+└── BuildingBlocks/
+    ├── 01-Domain-Library-Prompt.md      # Domain layer generation
+    ├── 02-Application-Library-Prompt.md # Application layer generation
+    ├── 03-Infrastructure-Library-Prompt.md # Infrastructure layer generation
+    └── 04-API-Library-Prompt.md         # API layer generation
+```
+
+---
+
+## 🎯 Key Architectural Features
+
+### ✨ Build System
+- **Centralized Package Management** - All packages managed through build targets
+- **Feature Flags** - Enable/disable functionality per project
+- **Automatic Project Detection** - Smart package inclusion based on project type
+- **Modern .NET Configuration** - Latest SDK features and optimizations
+- **Clean Project Files** - No package references in .csproj files
+
+### 🏛️ Domain Layer
+- **Strongly-typed IDs** using readonly structs with JSON converters
+- **Value Objects** with validation and immutability
 - **Domain Events** for business state changes
-- **Business Rules** encapsulation
-- **Rich domain models** following DDD
+- **Business Rules** encapsulation with validation
+- **Rich domain models** following DDD principles
+- **Comprehensive exception handling**
 
 ### ⚙️ Application Layer
-- **Custom Mediator** implementation (not MediatR)
+- **Custom Mediator** implementation (not MediatR dependency)
 - **CQRS** with separate commands and queries
 - **Pipeline Behaviors** for cross-cutting concerns
-- **Inbox/Outbox** patterns
-- **Comprehensive validation**
+- **Inbox/Outbox** patterns for reliable messaging
+- **Comprehensive validation** framework
+- **Service context** for request handling
 
 ### 🔧 Infrastructure Layer
-- **Multiple storage** implementations
-- **Message bus** abstractions
-- **Caching** strategies
-- **Authentication/Authorization** providers
+- **Multiple storage** implementations with abstractions
+- **Message bus** abstractions with in-memory implementation
+- **Caching** strategies (Memory, Distributed, Redis)
+- **Authentication/Authorization** infrastructure
 - **Monitoring and logging** integration
+- **Entity Framework** with interceptors and configurations
 
 ### 🌐 API Layer
-- **Minimal APIs** and Controllers
+- **Minimal APIs** and endpoint patterns
 - **Standardized responses** with ApiResponse<T>
 - **Comprehensive middleware** pipeline
-- **OpenAPI documentation**
-- **Versioning and health checks**
+- **Global exception handling** with Problem Details
+- **Request/response logging** with correlation IDs
+- **Modular extension** system
+
+### 📦 Package Management Benefits
+1. **Consistency** - All projects use the same package versions
+2. **Maintainability** - Update packages in one place
+3. **Flexibility** - Enable/disable features per project
+4. **Performance** - Only include packages you need
+5. **Clean Code** - No package clutter in project files
+6. **Smart Defaults** - Sensible package selection per project type
 
 ---
 
-This architecture provides a solid foundation for building scalable, maintainable microservices following modern .NET best practices with manual mapping for maximum control and flexibility. The infrastructure includes comprehensive database migration and seeding capabilities for development and deployment scenarios. 
+This architecture provides a solid, modern foundation for building scalable, maintainable microservices following current .NET best practices with intelligent package management and comprehensive abstractions for maximum flexibility and control. 

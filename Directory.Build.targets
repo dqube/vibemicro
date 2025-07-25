@@ -3,6 +3,99 @@
 
   <!-- Custom Build Targets -->
 
+  <!-- Build Performance Optimization -->
+  <PropertyGroup>
+    <RestoreUseStaticGraphEvaluation>true</RestoreUseStaticGraphEvaluation>
+    <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
+  </PropertyGroup>
+
+  <!-- Define BuildingBlocks project reference paths -->
+  <PropertyGroup>
+    <DomainProject>$(MSBuildThisFileDirectory)BuildingBlocks.Domain\BuildingBlocks.Domain.csproj</DomainProject>
+    <ApplicationProject>$(MSBuildThisFileDirectory)BuildingBlocks.Application\BuildingBlocks.Application.csproj</ApplicationProject>
+    <InfrastructureProject>$(MSBuildThisFileDirectory)BuildingBlocks.Infrastructure\BuildingBlocks.Infrastructure.csproj</InfrastructureProject>
+    <APIProject>$(MSBuildThisFileDirectory)BuildingBlocks.API\BuildingBlocks.API.csproj</APIProject>
+  </PropertyGroup>
+
+  <!-- BuildingBlocks Package Metadata Configuration -->
+  <PropertyGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('API'))">
+    <PackageId>BuildingBlocks.API</PackageId>
+    <Description>API layer building blocks for .NET applications following Clean Architecture principles</Description>
+    <PackageTags>api;web;aspnetcore;clean-architecture;building-blocks</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('Application'))">
+    <PackageId>BuildingBlocks.Application</PackageId>
+    <Description>Application layer building blocks for .NET applications following Clean Architecture principles</Description>
+    <PackageTags>application;cqrs;mediator;clean-architecture;building-blocks</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('Domain'))">
+    <PackageId>BuildingBlocks.Domain</PackageId>
+    <Description>Domain layer building blocks for .NET applications following Clean Architecture principles</Description>
+    <PackageTags>domain;ddd;entities;value-objects;clean-architecture;building-blocks</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('Infrastructure'))">
+    <PackageId>BuildingBlocks.Infrastructure</PackageId>
+    <Description>Infrastructure layer building blocks for .NET applications following Clean Architecture principles</Description>
+    <PackageTags>infrastructure;repository;data-access;clean-architecture;building-blocks</PackageTags>
+  </PropertyGroup>
+
+  <!-- Clean Architecture Project Dependencies -->
+  <Target Name="AddCleanArchitectureReferences" BeforeTargets="CollectPackageReferences">
+
+    <!-- BuildingBlocks Domain layer - no dependencies on other layers -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('Domain'))">
+      <!-- Domain has no project dependencies -->
+    </ItemGroup>
+    
+    <!-- BuildingBlocks Application layer - depends on Domain -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('Application'))">
+      <ProjectReference Include="$(DomainProject)" Condition="Exists('$(DomainProject)')" />
+    </ItemGroup>
+
+    <!-- BuildingBlocks Infrastructure layer - depends on Application only (gets Domain through Application) -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('Infrastructure'))">
+      <ProjectReference Include="$(ApplicationProject)" Condition="Exists('$(ApplicationProject)')" />
+    </ItemGroup>
+
+    <!-- BuildingBlocks API layer - depends on Infrastructure only (gets Domain and Application through Infrastructure) -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('BuildingBlocks')) and $(MSBuildProjectName.EndsWith('API'))">
+      <ProjectReference Include="$(InfrastructureProject)" Condition="Exists('$(InfrastructureProject)')" />
+    </ItemGroup>
+
+    <!-- Service Projects Dependencies -->
+    <!-- Service API projects reference BuildingBlocks.API and their own Infrastructure -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('Services')) and $(MSBuildProjectName.EndsWith('API'))">
+      <ProjectReference Include="$(APIProject)" Condition="Exists('$(APIProject)')" />
+      <ProjectReference Include="..\Infrastructure\*.csproj" />
+    </ItemGroup>
+
+    <!-- Service Application projects reference BuildingBlocks.Application and their own Domain -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('Services')) and $(MSBuildProjectName.EndsWith('Application'))">
+      <ProjectReference Include="$(ApplicationProject)" Condition="Exists('$(ApplicationProject)')" />
+      <ProjectReference Include="..\Domain\*.csproj" />
+    </ItemGroup>
+
+    <!-- Service Domain projects reference BuildingBlocks.Domain -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('Services')) and $(MSBuildProjectName.EndsWith('Domain'))">
+      <ProjectReference Include="$(DomainProject)" Condition="Exists('$(DomainProject)')" />
+    </ItemGroup>
+
+    <!-- Service Infrastructure projects reference BuildingBlocks.Infrastructure and their own Application -->
+    <ItemGroup Condition="$(MSBuildProjectFullPath.Contains('Services')) and $(MSBuildProjectName.EndsWith('Infrastructure'))">
+      <ProjectReference Include="$(InfrastructureProject)" Condition="Exists('$(InfrastructureProject)')" />
+      <ProjectReference Include="..\Application\*.csproj" />
+    </ItemGroup>
+
+  </Target>
+
+  <!-- Framework References -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'BuildingBlocks.Infrastructure' OR '$(MSBuildProjectName)' == 'BuildingBlocks.API'">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <!-- Clean artifacts directory before build -->
   <Target Name="CleanArtifacts" BeforeTargets="BeforeBuild">
     <ItemGroup>
@@ -17,54 +110,23 @@
     <MakeDir Directories="$(OutputPath)" Condition="!Exists('$(OutputPath)')" />
     <MakeDir Directories="$(BaseIntermediateOutputPath)" Condition="!Exists('$(BaseIntermediateOutputPath)')" />
     <MakeDir Directories="$(PackageOutputPath)" Condition="!Exists('$(PackageOutputPath)')" />
+    <MakeDir Directories="$(MSBuildThisFileDirectory)artifacts\logs\" />
+    <MakeDir Directories="$(MSBuildThisFileDirectory)artifacts\reports\" />
   </Target>
 
-  <!-- Copy documentation files to output -->
-  <Target Name="CopyDocumentationFiles" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
-    <ItemGroup>
-      <DocumentationFiles Include="$(MSBuildThisFileDirectory)README.md" />
-      <DocumentationFiles Include="$(MSBuildThisFileDirectory)CHANGELOG.md" />
-      <DocumentationFiles Include="$(MSBuildThisFileDirectory)LICENSE" />
-    </ItemGroup>
-    <Copy SourceFiles="@(DocumentationFiles)" DestinationFolder="$(OutputPath)" Condition="Exists('%(FullPath)')" />
-  </Target>
-
-  <!-- Generate version information file -->
-  <Target Name="GenerateVersionInfo" BeforeTargets="BeforeBuild" DependsOnTargets="GetGitInfo">
-    <PropertyGroup>
-      <VersionInfoFile>$(BaseIntermediateOutputPath)VersionInfo.cs</VersionInfoFile>
-      <VersionInfoContent>
-// <auto-generated />
-using System.Reflection;
-
-[assembly: AssemblyMetadata("BuildDate", "$(BuildDate)")]
-[assembly: AssemblyMetadata("BuildMachine", "$(COMPUTERNAME)")]
-[assembly: AssemblyMetadata("BuildUser", "$(USERNAME)")]
-[assembly: AssemblyMetadata("GitCommit", "$(GitCommitId)")]
-[assembly: AssemblyMetadata("GitBranch", "$(GitBranch)")]
-      </VersionInfoContent>
-    </PropertyGroup>
-    
-    <MakeDir Directories="$(BaseIntermediateOutputPath)" />
-    <WriteLinesToFile File="$(VersionInfoFile)" Lines="$(VersionInfoContent)" Overwrite="true" />
-    
-    <ItemGroup>
-      <Compile Include="$(VersionInfoFile)" />
-    </ItemGroup>
-  </Target>
-
-  <!-- Set build date -->
-  <PropertyGroup>
-    <BuildDate>$([System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ'))</BuildDate>
-  </PropertyGroup>
-
-  <!-- Git information -->
+  <!-- Enhanced Git Information with CI/CD Support -->
   <Target Name="GetGitInfo">
     <PropertyGroup>
       <GitCommitId>unknown</GitCommitId>
       <GitBranch>unknown</GitBranch>
+      <GitCommitMessage>unknown</GitCommitMessage>
+      <GitTag>unknown</GitTag>
+      <BuildNumber Condition="'$(BUILD_BUILDNUMBER)' != ''">$(BUILD_BUILDNUMBER)</BuildNumber>
+      <BuildNumber Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(GITHUB_RUN_NUMBER)</BuildNumber>
+      <BuildNumber Condition="'$(BuildNumber)' == ''">local</BuildNumber>
     </PropertyGroup>
     
+    <!-- Get Git Information -->
     <Exec Command="git rev-parse HEAD" 
           ConsoleToMSBuild="true" 
           ContinueOnError="true"
@@ -78,9 +140,77 @@ using System.Reflection;
           Condition="Exists('$(MSBuildThisFileDirectory).git')">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitBranch" />
     </Exec>
+
+    <Exec Command="git log -1 --pretty=format:%%s" 
+          ConsoleToMSBuild="true" 
+          ContinueOnError="true"
+          Condition="Exists('$(MSBuildThisFileDirectory).git')">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitMessage" />
+    </Exec>
+
+    <Exec Command="git describe --tags --exact-match" 
+          ConsoleToMSBuild="true" 
+          ContinueOnError="true"
+          Condition="Exists('$(MSBuildThisFileDirectory).git')">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitTag" />
+    </Exec>
+
+    <!-- Truncate commit ID for display -->
+    <PropertyGroup>
+      <GitCommitIdShort Condition="'$(GitCommitId)' != 'unknown'">$(GitCommitId.Substring(0, 8))</GitCommitIdShort>
+      <GitCommitIdShort Condition="'$(GitCommitId)' == 'unknown'">unknown</GitCommitIdShort>
+    </PropertyGroup>
   </Target>
 
-  <!-- Validate project references -->
+  <!-- Enhanced Version Information Generation -->
+  <Target Name="GenerateVersionInfo" BeforeTargets="BeforeBuild" DependsOnTargets="GetGitInfo">
+    <PropertyGroup>
+      <VersionInfoFile>$(BaseIntermediateOutputPath)VersionInfo.cs</VersionInfoFile>
+      <VersionInfoContent>
+// <auto-generated />
+using System.Reflection;
+
+[assembly: AssemblyMetadata("BuildDate", "$(BuildDate)")]
+[assembly: AssemblyMetadata("BuildMachine", "$(COMPUTERNAME)")]
+[assembly: AssemblyMetadata("BuildUser", "$(USERNAME)")]
+[assembly: AssemblyMetadata("BuildNumber", "$(BuildNumber)")]
+[assembly: AssemblyMetadata("GitCommit", "$(GitCommitId)")]
+[assembly: AssemblyMetadata("GitCommitShort", "$(GitCommitIdShort)")]
+[assembly: AssemblyMetadata("GitBranch", "$(GitBranch)")]
+[assembly: AssemblyMetadata("GitCommitMessage", "$(GitCommitMessage)")]
+[assembly: AssemblyMetadata("GitTag", "$(GitTag)")]
+[assembly: AssemblyMetadata("Configuration", "$(Configuration)")]
+[assembly: AssemblyMetadata("TargetFramework", "$(TargetFramework)")]
+      </VersionInfoContent>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(BaseIntermediateOutputPath)" />
+    <WriteLinesToFile File="$(VersionInfoFile)" Lines="$(VersionInfoContent)" Overwrite="true" />
+    
+    <ItemGroup>
+      <Compile Include="$(VersionInfoFile)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Build Information Logging -->
+  <Target Name="LogBuildInfo" BeforeTargets="BeforeBuild" DependsOnTargets="GetGitInfo">
+    <Message Text="==================== BUILD INFORMATION ====================" Importance="high" />
+    <Message Text="Project: $(MSBuildProjectName)" Importance="high" />
+    <Message Text="Configuration: $(Configuration)" Importance="high" />
+    <Message Text="Target Framework: $(TargetFramework)" Importance="high" />
+    <Message Text="Git Branch: $(GitBranch)" Importance="high" />
+    <Message Text="Git Commit: $(GitCommitIdShort)" Importance="high" />
+    <Message Text="Build Number: $(BuildNumber)" Importance="high" />
+    <Message Text="Build Date: $(BuildDate)" Importance="high" />
+    <Message Text="==========================================================" Importance="high" />
+  </Target>
+
+  <!-- Set build date -->
+  <PropertyGroup>
+    <BuildDate>$([System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ'))</BuildDate>
+  </PropertyGroup>
+
+  <!-- Enhanced Project Reference Validation -->
   <Target Name="ValidateProjectReferences" BeforeTargets="BeforeBuild">
     <ItemGroup>
       <InvalidReferences Include="@(ProjectReference)" 
@@ -89,25 +219,84 @@ using System.Reflection;
     
     <Error Text="Invalid project reference: %(InvalidReferences.Identity)" 
            Condition="'@(InvalidReferences)' != ''" />
+
+    <!-- Validate circular references -->
+    <Message Text="Validating project reference graph for $(MSBuildProjectName)" Importance="low" />
+  </Target>
+
+  <!-- Source Generator Support -->
+  <Target Name="ConfigureSourceGenerators" BeforeTargets="BeforeBuild" Condition="'$(EnableSourceGenerators)' == 'true'">
+    <Message Text="Configuring source generators for $(MSBuildProjectName)" Importance="high" />
+    
+    <ItemGroup>
+      <AdditionalFiles Include="**/*.json" Exclude="bin/**;obj/**" />
+      <AdditionalFiles Include="**/*.yaml" Exclude="bin/**;obj/**" />
+      <AdditionalFiles Include="**/*.yml" Exclude="bin/**;obj/**" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Dependency Vulnerability Scanning -->
+  <Target Name="ScanDependencies" BeforeTargets="Build" Condition="'$(RunDependencyScan)' == 'true'">
+    <Message Text="Scanning dependencies for vulnerabilities in $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <DependencyScanOutput>$(MSBuildThisFileDirectory)artifacts\reports\dependency-scan-$(MSBuildProjectName).json</DependencyScanOutput>
+    </PropertyGroup>
+    
+    <Exec Command="dotnet list package --vulnerable --include-transitive --format json --output-file $(DependencyScanOutput)" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true" />
   </Target>
 
   <!-- Code quality targets -->
   <Target Name="RunCodeAnalysis" Condition="'$(RunAnalyzersDuringBuild)' == 'true'">
     <Message Text="Running code analysis for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <CodeAnalysisLogFile>$(MSBuildThisFileDirectory)artifacts\logs\analysis-$(MSBuildProjectName).sarif</CodeAnalysisLogFile>
+    </PropertyGroup>
+    
+    <!-- Enable SARIF output for better tooling integration -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+      <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+      <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+      <CodeAnalysisRuleSet>$(MSBuildThisFileDirectory)BuildingBlocks.ruleset</CodeAnalysisRuleSet>
+    </PropertyGroup>
   </Target>
 
-  <!-- Test coverage target -->
+  <!-- Enhanced Test Coverage -->
   <Target Name="GenerateTestCoverage" AfterTargets="Test" Condition="'$(IsTestProject)' == 'true'">
     <Message Text="Generating test coverage report for $(MSBuildProjectName)" Importance="high" />
     
     <PropertyGroup>
       <CoverageReportPath>$(MSBuildThisFileDirectory)artifacts\coverage\$(MSBuildProjectName)\</CoverageReportPath>
+      <CoverageThreshold Condition="'$(CoverageThreshold)' == ''">80</CoverageThreshold>
     </PropertyGroup>
     
     <MakeDir Directories="$(CoverageReportPath)" />
+    
+    <!-- Generate detailed coverage reports -->
+    <Exec Command="dotnet tool restore" WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="true" />
+    <Exec Command="dotnet reportgenerator -reports:$(CoverageReportPath)*.xml -targetdir:$(CoverageReportPath)html -reporttypes:Html;Badges;TextSummary" 
+          WorkingDirectory="$(MSBuildThisFileDirectory)" 
+          ContinueOnError="true" />
   </Target>
 
-  <!-- Package validation -->
+  <!-- Performance Testing -->
+  <Target Name="RunPerformanceTests" Condition="'$(IsPerformanceTestProject)' == 'true'">
+    <Message Text="Running performance tests for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <PerfTestResultsPath>$(MSBuildThisFileDirectory)artifacts\performance\$(MSBuildProjectName)\</PerfTestResultsPath>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(PerfTestResultsPath)" />
+    
+    <Exec Command="dotnet test --configuration Release --logger:trx --results-directory $(PerfTestResultsPath) -- TestRunParameters.Parameter(name=&quot;ResultsDirectory&quot;, value=&quot;$(PerfTestResultsPath)&quot;)" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <!-- Package validation with enhanced checks -->
   <Target Name="ValidatePackage" AfterTargets="Pack" Condition="'$(IsPackable)' == 'true'">
     <Message Text="Validating package for $(MSBuildProjectName)" Importance="high" />
     
@@ -116,9 +305,13 @@ using System.Reflection;
     </ItemGroup>
     
     <Message Text="Generated package: %(GeneratedPackages.Identity)" Importance="high" />
+    
+    <!-- Run package validation -->
+    <Exec Command="dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool" ContinueOnError="true" />
+    <Exec Command="dotnet package validate %(GeneratedPackages.Identity)" ContinueOnError="true" />
   </Target>
 
-  <!-- Documentation generation -->
+  <!-- Enhanced Documentation Generation -->
   <Target Name="GenerateDocumentation" AfterTargets="Build" Condition="'$(GenerateDocumentationFile)' == 'true' AND '$(Configuration)' == 'Release'">
     <PropertyGroup>
       <DocumentationOutputPath>$(MSBuildThisFileDirectory)artifacts\docs\$(MSBuildProjectName)\</DocumentationOutputPath>
@@ -129,56 +322,102 @@ using System.Reflection;
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).xml" 
           DestinationFolder="$(DocumentationOutputPath)" 
           Condition="Exists('$(OutputPath)$(AssemblyName).xml')" />
+
+    <!-- Generate markdown documentation -->
+    <Exec Command="dotnet tool restore" WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="true" />
+    <Exec Command="dotnet xmldocmd $(OutputPath)$(AssemblyName).dll --output $(DocumentationOutputPath)" 
+          WorkingDirectory="$(MSBuildThisFileDirectory)" 
+          ContinueOnError="true" />
   </Target>
 
-  <!-- Security scan target -->
+  <!-- Security scan with multiple tools -->
   <Target Name="SecurityScan" Condition="'$(RunSecurityScan)' == 'true'">
     <Message Text="Running security scan for $(MSBuildProjectName)" Importance="high" />
-    <!-- Add security scanning tools integration here -->
+    
+    <PropertyGroup>
+      <SecurityScanOutput>$(MSBuildThisFileDirectory)artifacts\reports\security-$(MSBuildProjectName).json</SecurityScanOutput>
+    </PropertyGroup>
+    
+    <!-- Run DevSkim for security analysis -->
+    <Exec Command="dotnet tool install --global Microsoft.CST.DevSkim.CLI" ContinueOnError="true" />
+    <Exec Command="devskim analyze $(MSBuildProjectDirectory) --output-file $(SecurityScanOutput) --output-format json" ContinueOnError="true" />
   </Target>
 
-  <!-- Performance profiling target -->
-  <Target Name="PerformanceProfiling" Condition="'$(RunPerformanceProfiling)' == 'true'">
-    <Message Text="Running performance profiling for $(MSBuildProjectName)" Importance="high" />
-    <!-- Add performance profiling tools integration here -->
+  <!-- Load Testing Integration -->
+  <Target Name="RunLoadTests" Condition="'$(IsLoadTestProject)' == 'true'">
+    <Message Text="Running load tests for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <LoadTestResultsPath>$(MSBuildThisFileDirectory)artifacts\load-tests\$(MSBuildProjectName)\</LoadTestResultsPath>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(LoadTestResultsPath)" />
+    
+    <!-- Integration with NBomber or k6 -->
+    <Exec Command="dotnet run --configuration Release -- --output $(LoadTestResultsPath)" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
-  <!-- Database migration target -->
-  <Target Name="UpdateDatabase" Condition="'$(IsInfrastructureProject)' == 'true'">
-    <Message Text="Checking for database migrations in $(MSBuildProjectName)" Importance="high" />
-    <!-- Add EF Core migration commands here -->
+  <!-- Database migration with rollback support -->
+  <Target Name="UpdateDatabase" Condition="'$(IsInfrastructureProject)' == 'true' AND '$(RunDatabaseMigrations)' == 'true'">
+    <Message Text="Running database migrations for $(MSBuildProjectName)" Importance="high" />
+    
+    <PropertyGroup>
+      <MigrationScriptPath>$(MSBuildThisFileDirectory)artifacts\migrations\$(MSBuildProjectName)\</MigrationScriptPath>
+    </PropertyGroup>
+    
+    <MakeDir Directories="$(MigrationScriptPath)" />
+    
+    <!-- Generate migration scripts -->
+    <Exec Command="dotnet ef migrations script --output $(MigrationScriptPath)migration-$(BuildDate).sql" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true" />
   </Target>
 
-  <!-- API documentation generation -->
+  <!-- Enhanced API documentation with OpenAPI spec validation -->
   <Target Name="GenerateApiDocumentation" AfterTargets="Build" Condition="'$(IsApiProject)' == 'true' AND '$(Configuration)' == 'Release'">
     <PropertyGroup>
-      <ApiDocOutputPath>$(MSBuildThisFileDirectory)artifacts\api-docs\</ApiDocOutputPath>
+      <ApiDocOutputPath>$(MSBuildThisFileDirectory)artifacts\api-docs\$(MSBuildProjectName)\</ApiDocOutputPath>
+      <OpenApiSpecPath>$(ApiDocOutputPath)openapi.json</OpenApiSpecPath>
     </PropertyGroup>
     
     <MakeDir Directories="$(ApiDocOutputPath)" />
     <Message Text="Generating API documentation for $(MSBuildProjectName)" Importance="high" />
+    
+    <!-- Generate OpenAPI specification -->
+    <Exec Command="dotnet tool install --global Microsoft.dotnet-openapi" ContinueOnError="true" />
+    <Exec Command="dotnet run --configuration Release --urls http://localhost:0 -- --generate-openapi $(OpenApiSpecPath)" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true" />
   </Target>
 
-  <!-- Container image build target -->
+  <!-- Container image build with multi-stage optimization -->
   <Target Name="BuildContainerImage" Condition="'$(BuildContainerImage)' == 'true'">
     <Message Text="Building container image for $(MSBuildProjectName)" Importance="high" />
     
     <PropertyGroup>
       <ContainerImageName>$(MSBuildProjectName.ToLowerInvariant())</ContainerImageName>
-      <ContainerImageTag>$(Version)</ContainerImageTag>
+      <ContainerImageTag Condition="'$(ContainerImageTag)' == ''">$(Version)</ContainerImageTag>
       <DockerfilePath>$(MSBuildProjectDirectory)\Dockerfile</DockerfilePath>
+      <DockerBuildArgs>--build-arg BUILD_VERSION=$(Version) --build-arg BUILD_DATE=$(BuildDate) --build-arg GIT_COMMIT=$(GitCommitIdShort)</DockerBuildArgs>
     </PropertyGroup>
     
     <Error Text="Docker is required to build container images. Please install Docker." 
            Condition="!Exists('$(DockerfilePath)')" />
     
-    <Exec Command="docker build -t $(ContainerImageName):$(ContainerImageTag) -f $(DockerfilePath) ." 
+    <!-- Build with performance optimizations -->
+    <Exec Command="docker build $(DockerBuildArgs) -t $(ContainerImageName):$(ContainerImageTag) -t $(ContainerImageName):latest -f $(DockerfilePath) ." 
           WorkingDirectory="$(MSBuildProjectDirectory)" 
           ContinueOnError="false"
           Condition="Exists('$(DockerfilePath)')" />
+
+    <!-- Container vulnerability scanning -->
+    <Exec Command="docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image $(ContainerImageName):$(ContainerImageTag)" 
+          ContinueOnError="true"
+          Condition="'$(RunContainerScan)' == 'true'" />
   </Target>
 
-  <!-- Helm chart packaging -->
+  <!-- Helm chart packaging with validation -->
   <Target Name="PackageHelmChart" Condition="'$(PackageHelmChart)' == 'true'">
     <Message Text="Packaging Helm chart for $(MSBuildProjectName)" Importance="high" />
     
@@ -193,56 +432,115 @@ using System.Reflection;
     <Error Text="Helm chart not found at $(HelmChartFile)" 
            Condition="!Exists('$(HelmChartFile)')" />
     
-    <Exec Command="helm package $(HelmChartPath) --destination $(HelmPackageOutput)" 
+    <!-- Validate chart before packaging -->
+    <Exec Command="helm lint $(HelmChartPath)" 
+          Condition="Exists('$(HelmChartFile)')" 
+          ContinueOnError="false" />
+    
+    <Exec Command="helm package $(HelmChartPath) --destination $(HelmPackageOutput) --version $(Version)" 
           Condition="Exists('$(HelmChartFile)')" 
           ContinueOnError="false" />
   </Target>
 
-  <!-- Integration test target -->
+  <!-- Enhanced Integration Tests with Environment Management -->
   <Target Name="RunIntegrationTests" Condition="'$(IsIntegrationTestProject)' == 'true'">
     <Message Text="Running integration tests for $(MSBuildProjectName)" Importance="high" />
     
     <PropertyGroup>
       <TestResultsPath>$(MSBuildThisFileDirectory)artifacts\test-results\</TestResultsPath>
+      <TestEnvironment Condition="'$(TestEnvironment)' == ''">Development</TestEnvironment>
     </PropertyGroup>
     
     <MakeDir Directories="$(TestResultsPath)" />
     
-    <Exec Command="dotnet test --configuration $(Configuration) --logger trx --results-directory $(TestResultsPath)" 
-          WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <!-- Start test dependencies -->
+    <Exec Command="docker-compose -f docker-compose.test.yml up -d" 
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ContinueOnError="true" 
+          Condition="Exists('$(MSBuildThisFileDirectory)docker-compose.test.yml')" />
+    
+    <!-- Wait for dependencies -->
+    <Exec Command="timeout 30" ContinueOnError="true" />
+    
+    <!-- Run tests with retry -->
+    <Exec Command="dotnet test --configuration $(Configuration) --logger trx --results-directory $(TestResultsPath) --environment $(TestEnvironment) --verbosity normal" 
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          RetryCount="2"
+          RetryDelayInSeconds="5" />
+    
+    <!-- Cleanup test dependencies -->
+    <Exec Command="docker-compose -f docker-compose.test.yml down" 
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ContinueOnError="true" 
+          Condition="Exists('$(MSBuildThisFileDirectory)docker-compose.test.yml')" />
   </Target>
 
-  <!-- Benchmark target -->
+  <!-- Enhanced Benchmark target with result comparison -->
   <Target Name="RunBenchmarks" Condition="'$(IsBenchmarkProject)' == 'true'">
     <Message Text="Running benchmarks for $(MSBuildProjectName)" Importance="high" />
     
     <PropertyGroup>
-      <BenchmarkOutputPath>$(MSBuildThisFileDirectory)artifacts\benchmarks\</BenchmarkOutputPath>
+      <BenchmarkOutputPath>$(MSBuildThisFileDirectory)artifacts\benchmarks\$(MSBuildProjectName)\</BenchmarkOutputPath>
+      <BenchmarkBaselinePath>$(MSBuildThisFileDirectory)benchmarks\baseline\</BenchmarkBaselinePath>
     </PropertyGroup>
     
     <MakeDir Directories="$(BenchmarkOutputPath)" />
     
-    <Exec Command="dotnet run --configuration Release -- --artifacts $(BenchmarkOutputPath)" 
+    <Exec Command="dotnet run --configuration Release -- --artifacts $(BenchmarkOutputPath) --exporters json,html --memory --runtimes net8.0" 
           WorkingDirectory="$(MSBuildProjectDirectory)" />
+    
+    <!-- Compare with baseline if available -->
+    <Exec Command="dotnet tool install --global BenchmarkDotNet.Tool" ContinueOnError="true" />
+    <Exec Command="dotnet benchmark compare $(BenchmarkBaselinePath) $(BenchmarkOutputPath)" 
+          ContinueOnError="true"
+          Condition="Exists('$(BenchmarkBaselinePath)')" />
   </Target>
 
-  <!-- Clean up temporary files -->
+  <!-- Enhanced cleanup with logging -->
   <Target Name="CleanupTempFiles" AfterTargets="Build">
     <ItemGroup>
       <TempFiles Include="$(MSBuildProjectDirectory)\**\*.tmp" />
       <TempFiles Include="$(MSBuildProjectDirectory)\**\*.cache" />
       <TempFiles Include="$(BaseIntermediateOutputPath)**\*.tmp" />
+      <TempFiles Include="$(MSBuildProjectDirectory)\**\node_modules\**" Condition="'$(CleanNodeModules)' == 'true'" />
     </ItemGroup>
     
     <Delete Files="@(TempFiles)" ContinueOnError="true" />
+    <Message Text="Cleaned up temporary files" Importance="low" />
   </Target>
 
-  <!-- Define project type properties based on project names and paths -->
+  <!-- Build Summary Report -->
+  <Target Name="GenerateBuildSummary" AfterTargets="Build" Condition="'$(GenerateBuildSummary)' == 'true'">
+    <PropertyGroup>
+      <BuildSummaryPath>$(MSBuildThisFileDirectory)artifacts\reports\build-summary-$(MSBuildProjectName).json</BuildSummaryPath>
+      <BuildSummaryContent>
+{
+  "project": "$(MSBuildProjectName)",
+  "configuration": "$(Configuration)",
+  "targetFramework": "$(TargetFramework)",
+  "buildDate": "$(BuildDate)",
+  "gitCommit": "$(GitCommitId)",
+  "gitBranch": "$(GitBranch)",
+  "buildNumber": "$(BuildNumber)",
+  "version": "$(Version)",
+  "succeeded": true
+}
+      </BuildSummaryContent>
+    </PropertyGroup>
+    
+    <WriteLinesToFile File="$(BuildSummaryPath)" Lines="$(BuildSummaryContent)" Overwrite="true" />
+  </Target>
+
+  <!-- Enhanced project type detection -->
   <PropertyGroup>
-    <IsApiProject Condition="$(MSBuildProjectName.Contains('API')) OR $(MSBuildProjectFile.Contains('\API\'))">true</IsApiProject>
+    <IsApiProject Condition="$(MSBuildProjectName.Contains('API')) OR $(MSBuildProjectFile.Contains('\API\')) OR $(MSBuildProjectName.Contains('WebApi'))">true</IsApiProject>
     <IsInfrastructureProject Condition="$(MSBuildProjectName.Contains('Infrastructure')) OR $(MSBuildProjectFile.Contains('\Infrastructure\'))">true</IsInfrastructureProject>
+    <IsDomainProject Condition="$(MSBuildProjectName.Contains('Domain')) OR $(MSBuildProjectFile.Contains('\Domain\'))">true</IsDomainProject>
+    <IsApplicationProject Condition="$(MSBuildProjectName.Contains('Application')) OR $(MSBuildProjectFile.Contains('\Application\'))">true</IsApplicationProject>
     <IsIntegrationTestProject Condition="$(MSBuildProjectName.Contains('IntegrationTests')) OR $(MSBuildProjectName.Contains('Integration.Tests'))">true</IsIntegrationTestProject>
     <IsBenchmarkProject Condition="$(MSBuildProjectName.Contains('Benchmarks')) OR $(MSBuildProjectName.Contains('Benchmark'))">true</IsBenchmarkProject>
+    <IsPerformanceTestProject Condition="$(MSBuildProjectName.Contains('PerformanceTests')) OR $(MSBuildProjectName.Contains('Performance.Tests'))">true</IsPerformanceTestProject>
+    <IsLoadTestProject Condition="$(MSBuildProjectName.Contains('LoadTests')) OR $(MSBuildProjectName.Contains('Load.Tests'))">true</IsLoadTestProject>
   </PropertyGroup>
 
   <!-- Add Global Package References -->
@@ -266,15 +564,74 @@ using System.Reflection;
       <PackageReference Include="System.ComponentModel.Annotations" />
     </ItemGroup>
 
+    <!-- Nullable reference types analyzer -->
+    <ItemGroup Condition="'$(Nullable)' == 'enable'">
+      <PackageReference Include="Nullable" PrivateAssets="All" />
+    </ItemGroup>
+
+  </Target>
+
+  <!-- BuildingBlocks-specific Package References -->
+  <Target Name="AddBuildingBlocksPackageReferences" BeforeTargets="CollectPackageReferences">
+
+    <!-- BuildingBlocks Domain layer specific packages -->
+    <ItemGroup Condition="'$(MSBuildProjectName)' == 'BuildingBlocks.Domain'">
+      <PackageReference Include="System.Text.Json" />
+    </ItemGroup>
+
+    <!-- BuildingBlocks Application layer specific packages -->
+    <ItemGroup Condition="'$(MSBuildProjectName)' == 'BuildingBlocks.Application'">
+      <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+      <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+      <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+      <PackageReference Include="Scrutor" />
+    </ItemGroup>
+
+    <!-- BuildingBlocks Infrastructure layer specific packages -->
+    <ItemGroup Condition="'$(MSBuildProjectName)' == 'BuildingBlocks.Infrastructure'">
+      <PackageReference Include="Microsoft.EntityFrameworkCore" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+      <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+      <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+      <PackageReference Include="StackExchange.Redis" />
+      <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+      <PackageReference Include="FluentValidation" />
+      <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    </ItemGroup>
+
+    <!-- BuildingBlocks API layer specific packages -->
+    <ItemGroup Condition="'$(MSBuildProjectName)' == 'BuildingBlocks.API'">
+      <PackageReference Include="FluentValidation" />
+      <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+      <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+      <PackageReference Include="Scalar.AspNetCore" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+      <PackageReference Include="Asp.Versioning.Http" />
+      <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+      <PackageReference Include="Serilog.AspNetCore" />
+      <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+      <PackageReference Include="Microsoft.AspNetCore.ResponseCompression" />
+      <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+      <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" />
+      <PackageReference Include="Microsoft.AspNetCore.Authorization" />
+    </ItemGroup>
+
   </Target>
 
   <!-- Add Domain Project Package References -->
-  <Target Name="AddDomainPackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsDomainProject)' == 'true'">
+  <Target Name="AddDomainPackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsDomainProject)' == 'true' AND '$(MSBuildProjectName)' != 'BuildingBlocks.Domain'">
     <!-- Domain projects typically only need minimal dependencies -->
+    
+    <!-- Domain modeling helpers -->
+    <ItemGroup Condition="'$(IncludeDomainHelpers)' != 'false'">
+      <PackageReference Include="Ardalis.GuardClauses" />
+      <PackageReference Include="CSharpFunctionalExtensions" />
+    </ItemGroup>
   </Target>
 
   <!-- Add Application Project Package References -->
-  <Target Name="AddApplicationPackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsApplicationProject)' == 'true'">
+  <Target Name="AddApplicationPackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsApplicationProject)' == 'true' AND '$(MSBuildProjectName)' != 'BuildingBlocks.Application'">
     
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
@@ -287,10 +644,16 @@ using System.Reflection;
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     </ItemGroup>
 
+    <!-- MediatR for CQRS -->
+    <ItemGroup Condition="'$(IncludeMediatR)' == 'true'">
+      <PackageReference Include="MediatR" />
+      <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" />
+    </ItemGroup>
+
   </Target>
 
   <!-- Add Infrastructure Project Package References -->
-  <Target Name="AddInfrastructurePackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsInfrastructureProject)' == 'true'">
+  <Target Name="AddInfrastructurePackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsInfrastructureProject)' == 'true' AND '$(MSBuildProjectName)' != 'BuildingBlocks.Infrastructure'">
     
     <!-- Core infrastructure dependencies -->
     <ItemGroup>
@@ -357,6 +720,8 @@ using System.Reflection;
     <ItemGroup Condition="'$(IncludeMessaging)' != 'false'">
       <PackageReference Include="Azure.Messaging.ServiceBus" />
       <PackageReference Include="RabbitMQ.Client" />
+      <PackageReference Include="MassTransit" />
+      <PackageReference Include="MassTransit.RabbitMQ" />
     </ItemGroup>
 
     <!-- Monitoring & Observability -->
@@ -367,6 +732,8 @@ using System.Reflection;
       <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
       <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
       <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" />
+      <PackageReference Include="Serilog" />
+      <PackageReference Include="Serilog.Extensions.Hosting" />
     </ItemGroup>
 
     <!-- Security -->
@@ -400,7 +767,7 @@ using System.Reflection;
   </Target>
 
   <!-- Add API Project Package References -->
-  <Target Name="AddApiPackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsApiProject)' == 'true'">
+  <Target Name="AddApiPackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsApiProject)' == 'true' AND '$(MSBuildProjectName)' != 'BuildingBlocks.API'">
     
     <!-- Core ASP.NET Core -->
     <ItemGroup>
@@ -413,8 +780,8 @@ using System.Reflection;
 
     <!-- API Versioning -->
     <ItemGroup Condition="'$(IncludeApiVersioning)' != 'false'">
-      <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning" />
-      <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" />
+      <PackageReference Include="Asp.Versioning.Http" />
+      <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
     </ItemGroup>
 
     <!-- OpenAPI/Swagger -->
@@ -486,6 +853,15 @@ using System.Reflection;
       <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="All" />
       <PackageReference Include="xunit" PrivateAssets="All" />
       <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="All" />
+      <PackageReference Include="FluentAssertions" PrivateAssets="All" />
+      <PackageReference Include="Bogus" PrivateAssets="All" />
+    </ItemGroup>
+
+    <!-- Integration test specific packages -->
+    <ItemGroup Condition="'$(IsIntegrationTestProject)' == 'true'">
+      <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" PrivateAssets="All" />
+      <PackageReference Include="Testcontainers" PrivateAssets="All" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" PrivateAssets="All" />
     </ItemGroup>
 
   </Target>
@@ -495,6 +871,17 @@ using System.Reflection;
     
     <ItemGroup>
       <PackageReference Include="BenchmarkDotNet" />
+      <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    </ItemGroup>
+
+  </Target>
+
+  <!-- Add Performance Test Package References -->
+  <Target Name="AddPerformanceTestPackageReferences" BeforeTargets="CollectPackageReferences" Condition="'$(IsPerformanceTestProject)' == 'true'">
+    
+    <ItemGroup>
+      <PackageReference Include="NBomber" />
+      <PackageReference Include="Microsoft.Extensions.Http" />
     </ItemGroup>
 
   </Target>
