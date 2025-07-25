@@ -1,66 +1,52 @@
-using AuthService.Domain.DomainEvents;
+using BuildingBlocks.Domain.Entities;
 using AuthService.Domain.StronglyTypedIds;
 using AuthService.Domain.ValueObjects;
-using BuildingBlocks.Domain.Entities;
-using BuildingBlocks.Domain.Extensions;
+using AuthService.Domain.DomainEvents;
 
 namespace AuthService.Domain.Entities;
 
 /// <summary>
-/// Represents a registration token for email verification or password reset
+/// Registration token entity for email verification and password reset
 /// </summary>
-public sealed class RegistrationToken : GuidEntity<TokenId>, IAuditableEntity
+public class RegistrationToken : Entity<TokenId>, IAuditableEntity
 {
     /// <summary>
     /// Gets the user identifier this token belongs to
     /// </summary>
-    public UserId UserId { get; private set; } = null!;
+    public UserId UserId { get; private set; }
 
     /// <summary>
-    /// Gets the type of token
+    /// Gets the token type
     /// </summary>
-    public TokenType TokenType { get; private set; } = null!;
+    public TokenType TokenType { get; private set; }
 
     /// <summary>
-    /// Gets when the token expires
+    /// Gets the token expiration time
     /// </summary>
     public DateTime Expiration { get; private set; }
 
     /// <summary>
-    /// Gets whether the token has been used
+    /// Gets a value indicating whether the token has been used
     /// </summary>
     public bool IsUsed { get; private set; }
 
     /// <summary>
-    /// Gets when the token was created
+    /// Gets the creation timestamp
     /// </summary>
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; private set; }
 
     /// <summary>
-    /// Gets who created the token
+    /// Gets the user who created this entity
     /// </summary>
-    public string CreatedBy { get; set; } = string.Empty;
+    public UserId? CreatedBy { get; private set; }
 
     /// <summary>
-    /// Gets when the token was last modified
+    /// Private constructor for Entity Framework
     /// </summary>
-    public DateTime? LastModifiedAt { get; set; }
-
-    /// <summary>
-    /// Gets who last modified the token
-    /// </summary>
-    public string? LastModifiedBy { get; set; }
-
-    /// <summary>
-    /// Navigation property to the user
-    /// </summary>
-    public User User { get; private set; } = null!;
-
-    /// <summary>
-    /// Private constructor for ORM
-    /// </summary>
-    private RegistrationToken() : base()
+    private RegistrationToken() : base(TokenId.Empty)
     {
+        UserId = UserId.Empty;
+        TokenType = null!;
     }
 
     /// <summary>
@@ -69,64 +55,69 @@ public sealed class RegistrationToken : GuidEntity<TokenId>, IAuditableEntity
     /// <param name="id">The token identifier</param>
     /// <param name="userId">The user identifier</param>
     /// <param name="tokenType">The token type</param>
-    /// <param name="expiration">When the token expires</param>
-    /// <param name="createdBy">Who created the token</param>
-    public RegistrationToken(TokenId id, UserId userId, TokenType tokenType, DateTime expiration, string createdBy)
-        : base()
+    /// <param name="expiration">The token expiration time</param>
+    /// <param name="createdBy">The user who created this entity</param>
+    public RegistrationToken(TokenId id, UserId userId, TokenType tokenType, DateTime expiration, UserId? createdBy = null)
+        : base(id)
     {
-        Id = id ?? throw new ArgumentNullException(nameof(id));
-        UserId = userId ?? throw new ArgumentNullException(nameof(userId));
+        UserId = userId;
         TokenType = tokenType ?? throw new ArgumentNullException(nameof(tokenType));
         Expiration = expiration;
-        CreatedBy = createdBy ?? throw new ArgumentNullException(nameof(createdBy));
-        CreatedAt = DateTime.UtcNow;
         IsUsed = false;
-
-        if (expiration <= DateTime.UtcNow)
-            throw new ArgumentException("Token expiration must be in the future", nameof(expiration));
-
-        AddDomainEvent(new RegistrationTokenCreatedDomainEvent(Id, UserId, TokenType));
+        CreatedAt = DateTime.UtcNow;
+        CreatedBy = createdBy;
     }
 
     /// <summary>
-    /// Factory method to create a new registration token
+    /// Creates a new email verification token
     /// </summary>
-    /// <param name="user">The user the token belongs to</param>
-    /// <param name="tokenType">The token type</param>
-    /// <param name="createdBy">Who created the token</param>
-    /// <param name="customExpiration">Custom expiration time (optional)</param>
-    /// <returns>A new registration token instance</returns>
-    public static RegistrationToken Create(User user, TokenType tokenType, string createdBy, DateTime? customExpiration = null)
+    /// <param name="userId">The user identifier</param>
+    /// <param name="validityPeriod">The validity period (default 24 hours)</param>
+    /// <param name="createdBy">The user who created this entity</param>
+    /// <returns>A new RegistrationToken instance</returns>
+    public static RegistrationToken CreateEmailVerification(UserId userId, TimeSpan? validityPeriod = null, UserId? createdBy = null)
     {
-        if (user == null)
-            throw new ArgumentNullException(nameof(user));
-
-        var tokenId = TokenId.New();
-        var expiration = customExpiration ?? DateTime.UtcNow.Add(tokenType.GetDefaultExpiration());
+        var expiration = DateTime.UtcNow.Add(validityPeriod ?? TimeSpan.FromHours(24));
+        var token = new RegistrationToken(TokenId.New(), userId, TokenType.EmailVerification, expiration, createdBy);
         
-        var token = new RegistrationToken(tokenId, user.Id, tokenType, expiration, createdBy);
-        user.AddRegistrationToken(token);
-        
+        token.AddDomainEvent(new EmailVerificationTokenCreatedDomainEvent(token.Id, userId, expiration));
         return token;
     }
 
     /// <summary>
-    /// Marks the token as used
+    /// Creates a new password reset token
     /// </summary>
-    /// <param name="modifiedBy">Who used the token</param>
-    public void MarkAsUsed(string modifiedBy)
+    /// <param name="userId">The user identifier</param>
+    /// <param name="validityPeriod">The validity period (default 1 hour)</param>
+    /// <param name="createdBy">The user who created this entity</param>
+    /// <returns>A new RegistrationToken instance</returns>
+    public static RegistrationToken CreatePasswordReset(UserId userId, TimeSpan? validityPeriod = null, UserId? createdBy = null)
+    {
+        var expiration = DateTime.UtcNow.Add(validityPeriod ?? TimeSpan.FromHours(1));
+        var token = new RegistrationToken(TokenId.New(), userId, TokenType.PasswordReset, expiration, createdBy);
+        
+        token.AddDomainEvent(new PasswordResetTokenCreatedDomainEvent(token.Id, userId, expiration));
+        return token;
+    }
+
+    /// <summary>
+    /// Uses the token, marking it as consumed
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when the token is already used or expired</exception>
+    public void Use()
     {
         if (IsUsed)
-            return;
+            throw new InvalidOperationException("Token has already been used.");
 
         if (IsExpired())
-            throw new InvalidOperationException("Cannot use an expired token");
+            throw new InvalidOperationException("Token has expired.");
 
         IsUsed = true;
-        LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-        LastModifiedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new RegistrationTokenUsedDomainEvent(Id, UserId, TokenType));
+        if (TokenType.IsEmailVerification)
+            AddDomainEvent(new EmailVerificationTokenUsedDomainEvent(Id, UserId));
+        else if (TokenType.IsPasswordReset)
+            AddDomainEvent(new PasswordResetTokenUsedDomainEvent(Id, UserId));
     }
 
     /// <summary>
@@ -139,71 +130,34 @@ public sealed class RegistrationToken : GuidEntity<TokenId>, IAuditableEntity
     }
 
     /// <summary>
-    /// Checks if the token is valid (not expired and not used)
+    /// Checks if the token is valid (not used and not expired)
     /// </summary>
     /// <returns>True if the token is valid</returns>
     public bool IsValid()
     {
-        return !IsExpired() && !IsUsed;
-    }
-
-    /// <summary>
-    /// Gets the remaining time before the token expires
-    /// </summary>
-    /// <returns>The remaining time, or null if already expired</returns>
-    public TimeSpan? GetRemainingTime()
-    {
-        if (IsExpired())
-            return null;
-
-        return Expiration - DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// Extends the token expiration
-    /// </summary>
-    /// <param name="newExpiration">The new expiration time</param>
-    /// <param name="modifiedBy">Who extended the token</param>
-    public void ExtendExpiration(DateTime newExpiration, string modifiedBy)
-    {
-        if (IsUsed)
-            throw new InvalidOperationException("Cannot extend expiration of a used token");
-
-        if (newExpiration <= DateTime.UtcNow)
-            throw new ArgumentException("New expiration must be in the future", nameof(newExpiration));
-
-        if (newExpiration <= Expiration)
-            throw new ArgumentException("New expiration must be later than current expiration", nameof(newExpiration));
-
-        Expiration = newExpiration;
-        LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-        LastModifiedAt = DateTime.UtcNow;
-
-        AddDomainEvent(new RegistrationTokenExtendedDomainEvent(Id, UserId, newExpiration));
+        return !IsUsed && !IsExpired();
     }
 
     /// <summary>
     /// Validates the token for use
     /// </summary>
-    /// <param name="userIdToValidate">The user ID to validate against</param>
-    /// <param name="tokenTypeToValidate">The token type to validate against</param>
-    /// <returns>True if the token is valid for the specified parameters</returns>
-    public bool ValidateForUse(UserId userIdToValidate, TokenType tokenTypeToValidate)
+    /// <exception cref="InvalidOperationException">Thrown when the token is invalid</exception>
+    public void ValidateForUse()
     {
-        if (userIdToValidate == null || tokenTypeToValidate == null)
-            return false;
+        if (IsUsed)
+            throw new InvalidOperationException("Token has already been used.");
 
-        return UserId.Equals(userIdToValidate) && 
-               TokenType.Equals(tokenTypeToValidate) && 
-               IsValid();
+        if (IsExpired())
+            throw new InvalidOperationException("Token has expired.");
     }
 
     /// <summary>
-    /// Returns the string representation of the registration token
+    /// Gets the time remaining until expiration
     /// </summary>
-    public override string ToString()
+    /// <returns>Time remaining, or null if expired</returns>
+    public TimeSpan? GetTimeRemaining()
     {
-        var status = IsUsed ? "Used" : IsExpired() ? "Expired" : "Active";
-        return $"Token: {Id} ({TokenType}) - {status}";
+        var remaining = Expiration - DateTime.UtcNow;
+        return remaining > TimeSpan.Zero ? remaining : null;
     }
 } 

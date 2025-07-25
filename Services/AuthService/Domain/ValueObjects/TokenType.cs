@@ -3,97 +3,105 @@ using BuildingBlocks.Domain.ValueObjects;
 namespace AuthService.Domain.ValueObjects;
 
 /// <summary>
-/// Enumeration representing different types of registration tokens
+/// Token type value object representing the type of registration token
 /// </summary>
-internal sealed class TokenType : Enumeration
+public sealed record TokenType : SingleValueObject<string>
 {
     /// <summary>
-    /// Email verification token
+    /// Email verification token type
     /// </summary>
-    public static readonly TokenType EmailVerification = new(1, nameof(EmailVerification));
+    public static readonly TokenType EmailVerification = new("EmailVerification");
 
     /// <summary>
-    /// Password reset token
+    /// Password reset token type
     /// </summary>
-    public static readonly TokenType PasswordReset = new(2, nameof(PasswordReset));
+    public static readonly TokenType PasswordReset = new("PasswordReset");
+
+    /// <summary>
+    /// All valid token types
+    /// </summary>
+    public static readonly IReadOnlyList<TokenType> ValidTypes = new[]
+    {
+        EmailVerification,
+        PasswordReset
+    };
 
     /// <summary>
     /// Initializes a new instance of the TokenType class
     /// </summary>
-    /// <param name="id">The unique identifier</param>
-    /// <param name="name">The name</param>
-    private TokenType(int id, string name) : base(id, name)
+    /// <param name="value">The token type value</param>
+    public TokenType(string value) : base(ValidateTokenType(value))
     {
     }
 
     /// <summary>
-    /// Gets all available token types
+    /// Creates a TokenType from a string value
     /// </summary>
-    /// <returns>All token types</returns>
-    public static IEnumerable<TokenType> GetAll()
+    /// <param name="value">The token type value</param>
+    /// <returns>A new TokenType instance</returns>
+    public static TokenType From(string value) => new(value);
+
+    /// <summary>
+    /// Tries to create a TokenType from a string value
+    /// </summary>
+    /// <param name="value">The token type value</param>
+    /// <param name="tokenType">The created token type if successful</param>
+    /// <returns>True if the token type was created successfully</returns>
+    public static bool TryFrom(string? value, out TokenType? tokenType)
     {
-        return GetAll<TokenType>();
-    }
+        tokenType = null;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
 
-    /// <summary>
-    /// Gets a token type by name
-    /// </summary>
-    /// <param name="name">The token type name</param>
-    /// <returns>The token type if found</returns>
-    public static TokenType? FromName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            return null;
-
-        return GetAll().FirstOrDefault(t => 
-            string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Gets a token type by ID
-    /// </summary>
-    /// <param name="id">The token type ID</param>
-    /// <returns>The token type if found</returns>
-    public static TokenType? FromId(int id)
-    {
-        return GetAll().FirstOrDefault(t => t.Id == id);
-    }
-
-    /// <summary>
-    /// Checks if this is an email verification token
-    /// </summary>
-    public bool IsEmailVerification => this == EmailVerification;
-
-    /// <summary>
-    /// Checks if this is a password reset token
-    /// </summary>
-    public bool IsPasswordReset => this == PasswordReset;
-
-    /// <summary>
-    /// Gets the default expiration time for this token type
-    /// </summary>
-    /// <returns>The default expiration timespan</returns>
-    public TimeSpan GetDefaultExpiration()
-    {
-        return this switch
+        try
         {
-            _ when this == EmailVerification => TimeSpan.FromDays(1),
-            _ when this == PasswordReset => TimeSpan.FromHours(1),
-            _ => TimeSpan.FromHours(24)
-        };
+            tokenType = new TokenType(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks if the token type is for email verification
+    /// </summary>
+    public bool IsEmailVerification => Value == EmailVerification.Value;
+
+    /// <summary>
+    /// Checks if the token type is for password reset
+    /// </summary>
+    public bool IsPasswordReset => Value == PasswordReset.Value;
+
+    /// <summary>
+    /// Validates the token type value
+    /// </summary>
+    /// <param name="value">The token type value to validate</param>
+    /// <returns>The validated token type value</returns>
+    /// <exception cref="ArgumentException">Thrown when the token type is invalid</exception>
+    private static string ValidateTokenType(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Token type cannot be null, empty, or whitespace.", nameof(value));
+
+        var trimmed = value.Trim();
+
+        if (!ValidTypes.Any(vt => vt.Value == trimmed))
+            throw new ArgumentException($"Invalid token type '{trimmed}'. Valid types are: {string.Join(", ", ValidTypes.Select(vt => vt.Value))}.", nameof(value));
+
+        return trimmed;
     }
 
     /// <summary>
     /// Implicit conversion from string to TokenType
     /// </summary>
-    /// <param name="name">The token type name</param>
-    /// <returns>The token type if found, null otherwise</returns>
-    public static implicit operator TokenType?(string name) => FromName(name);
+    /// <param name="value">The string value</param>
+    public static implicit operator TokenType(string value) => new(value);
 
     /// <summary>
     /// Implicit conversion from TokenType to string
     /// </summary>
-    /// <param name="tokenType">The token type</param>
-    /// <returns>The token type name</returns>
-    public static implicit operator string(TokenType tokenType) => tokenType?.Name ?? string.Empty;
+    /// <param name="tokenType">The TokenType instance</param>
+    public static implicit operator string(TokenType tokenType) => tokenType.Value;
 } 

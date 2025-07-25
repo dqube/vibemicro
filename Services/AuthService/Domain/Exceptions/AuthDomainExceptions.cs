@@ -1,28 +1,23 @@
-using AuthService.Domain.StronglyTypedIds;
-using AuthService.Domain.ValueObjects;
-using BuildingBlocks.Domain.Common;
 using BuildingBlocks.Domain.Exceptions;
+using AuthService.Domain.StronglyTypedIds;
 
 namespace AuthService.Domain.Exceptions;
 
 /// <summary>
 /// Exception thrown when a user is not found
 /// </summary>
-internal sealed class UserNotFoundException : DomainException
+public sealed class UserNotFoundException : DomainException
 {
-    public UserNotFoundException(UserId userId)
-        : base($"User with ID '{userId}' was not found", "USER_NOT_FOUND", new { UserId = userId.Value })
+    public UserId UserId { get; }
+
+    public UserNotFoundException(UserId userId) : base($"User with ID '{userId}' was not found.")
     {
+        UserId = userId;
     }
 
-    public UserNotFoundException(Username username)
-        : base($"User with username '{username}' was not found", "USER_NOT_FOUND", new { Username = username.Value })
+    public UserNotFoundException(string username) : base($"User with username '{username}' was not found.")
     {
-    }
-
-    public UserNotFoundException(Email email)
-        : base($"User with email '{email}' was not found", "USER_NOT_FOUND", new { Email = email.Value })
-    {
+        UserId = UserId.Empty;
     }
 }
 
@@ -31,14 +26,16 @@ internal sealed class UserNotFoundException : DomainException
 /// </summary>
 public sealed class RoleNotFoundException : DomainException
 {
-    public RoleNotFoundException(RoleId roleId)
-        : base($"Role with ID '{roleId}' was not found", "ROLE_NOT_FOUND", new { RoleId = roleId.Value })
+    public RoleId RoleId { get; }
+
+    public RoleNotFoundException(RoleId roleId) : base($"Role with ID '{roleId}' was not found.")
     {
+        RoleId = roleId;
     }
 
-    public RoleNotFoundException(string roleName)
-        : base($"Role with name '{roleName}' was not found", "ROLE_NOT_FOUND", new { RoleName = roleName })
+    public RoleNotFoundException(string roleName) : base($"Role with name '{roleName}' was not found.")
     {
+        RoleId = RoleId.Zero;
     }
 }
 
@@ -47,20 +44,40 @@ public sealed class RoleNotFoundException : DomainException
 /// </summary>
 public sealed class RegistrationTokenNotFoundException : DomainException
 {
-    public RegistrationTokenNotFoundException(TokenId tokenId)
-        : base($"Registration token with ID '{tokenId}' was not found", "TOKEN_NOT_FOUND", new { TokenId = tokenId.Value })
+    public TokenId TokenId { get; }
+
+    public RegistrationTokenNotFoundException(TokenId tokenId) : base($"Registration token with ID '{tokenId}' was not found.")
     {
+        TokenId = tokenId;
     }
 }
 
 /// <summary>
-/// Exception thrown when attempting to use an invalid token
+/// Exception thrown when authentication fails
 /// </summary>
-public sealed class InvalidTokenException : DomainException
+public sealed class AuthenticationFailedException : DomainException
 {
-    public InvalidTokenException(TokenId tokenId, string reason)
-        : base($"Token '{tokenId}' is invalid: {reason}", "INVALID_TOKEN", new { TokenId = tokenId.Value, Reason = reason })
+    public string Identifier { get; }
+    public AuthenticationFailureReason Reason { get; }
+
+    public AuthenticationFailedException(string identifier, AuthenticationFailureReason reason) 
+        : base(GetMessageForReason(identifier, reason))
     {
+        Identifier = identifier;
+        Reason = reason;
+    }
+
+    private static string GetMessageForReason(string identifier, AuthenticationFailureReason reason)
+    {
+        return reason switch
+        {
+            AuthenticationFailureReason.UserNotFound => $"User '{identifier}' was not found.",
+            AuthenticationFailureReason.InvalidPassword => "Invalid password provided.",
+            AuthenticationFailureReason.UserInactive => $"User '{identifier}' is inactive.",
+            AuthenticationFailureReason.UserLockedOut => $"User '{identifier}' is locked out.",
+            AuthenticationFailureReason.AccountNotVerified => $"User '{identifier}' account is not verified.",
+            _ => $"Authentication failed for user '{identifier}'."
+        };
     }
 }
 
@@ -69,10 +86,14 @@ public sealed class InvalidTokenException : DomainException
 /// </summary>
 public sealed class UserLockedOutException : DomainException
 {
-    public UserLockedOutException(UserId userId, DateTime lockoutEnd)
-        : base($"User account '{userId}' is locked out until {lockoutEnd:yyyy-MM-dd HH:mm:ss}", "USER_LOCKED_OUT", 
-               new { UserId = userId.Value, LockoutEnd = lockoutEnd })
+    public UserId UserId { get; }
+    public DateTime LockoutEnd { get; }
+
+    public UserLockedOutException(UserId userId, DateTime lockoutEnd) 
+        : base($"User '{userId}' is locked out until {lockoutEnd:yyyy-MM-dd HH:mm:ss} UTC.")
     {
+        UserId = userId;
+        LockoutEnd = lockoutEnd;
     }
 }
 
@@ -81,151 +102,145 @@ public sealed class UserLockedOutException : DomainException
 /// </summary>
 public sealed class UserInactiveException : DomainException
 {
-    public UserInactiveException(UserId userId)
-        : base($"User account '{userId}' is inactive", "USER_INACTIVE", new { UserId = userId.Value })
+    public UserId UserId { get; }
+
+    public UserInactiveException(UserId userId) : base($"User '{userId}' is inactive.")
     {
+        UserId = userId;
     }
 }
 
 /// <summary>
-/// Exception thrown when authentication fails
+/// Exception thrown when a registration token is invalid
 /// </summary>
-internal sealed class AuthenticationFailedException : DomainException
+public sealed class InvalidRegistrationTokenException : DomainException
 {
-    public AuthenticationFailedException(string reason)
-        : base($"Authentication failed: {reason}", "AUTHENTICATION_FAILED", new { Reason = reason })
+    public TokenId TokenId { get; }
+    public TokenValidationFailureReason Reason { get; }
+
+    public InvalidRegistrationTokenException(TokenId tokenId, TokenValidationFailureReason reason) 
+        : base(GetMessageForReason(tokenId, reason))
     {
+        TokenId = tokenId;
+        Reason = reason;
     }
 
-    public AuthenticationFailedException(Username username, string reason)
-        : base($"Authentication failed for user '{username}': {reason}", "AUTHENTICATION_FAILED", 
-               new { Username = username.Value, Reason = reason })
+    private static string GetMessageForReason(TokenId tokenId, TokenValidationFailureReason reason)
     {
+        return reason switch
+        {
+            TokenValidationFailureReason.Expired => $"Registration token '{tokenId}' has expired.",
+            TokenValidationFailureReason.AlreadyUsed => $"Registration token '{tokenId}' has already been used.",
+            TokenValidationFailureReason.WrongType => $"Registration token '{tokenId}' is not the correct type for this operation.",
+            _ => $"Registration token '{tokenId}' is invalid."
+        };
     }
 }
 
 /// <summary>
-/// Exception thrown when a username is already taken
+/// Reasons for token validation failure
 /// </summary>
-internal sealed class UsernameAlreadyExistsException : DomainException
+public enum TokenValidationFailureReason
 {
-    public UsernameAlreadyExistsException(Username username)
-        : base($"Username '{username}' is already taken", "USERNAME_ALREADY_EXISTS", new { Username = username.Value })
-    {
-    }
+    Expired,
+    AlreadyUsed,
+    WrongType,
+    NotFound
 }
 
 /// <summary>
-/// Exception thrown when an email is already registered
+/// Exception thrown when attempting to duplicate a username
 /// </summary>
-public sealed class EmailAlreadyExistsException : DomainException
+public sealed class DuplicateUsernameException : DomainException
 {
-    public EmailAlreadyExistsException(Email email)
-        : base($"Email '{email}' is already registered", "EMAIL_ALREADY_EXISTS", new { Email = email.Value })
+    public string Username { get; }
+
+    public DuplicateUsernameException(string username) : base($"Username '{username}' is already taken.")
     {
+        Username = username;
     }
 }
 
 /// <summary>
-/// Exception thrown when a role name is already taken
+/// Exception thrown when attempting to duplicate an email address
 /// </summary>
-public sealed class RoleNameAlreadyExistsException : DomainException
+public sealed class DuplicateEmailException : DomainException
 {
-    public RoleNameAlreadyExistsException(string roleName)
-        : base($"Role name '{roleName}' is already taken", "ROLE_NAME_ALREADY_EXISTS", new { RoleName = roleName })
+    public string Email { get; }
+
+    public DuplicateEmailException(string email) : base($"Email address '{email}' is already in use.")
     {
+        Email = email;
     }
 }
 
 /// <summary>
-/// Exception thrown when attempting invalid role operations
+/// Exception thrown when a password doesn't meet strength requirements
 /// </summary>
-public sealed class InvalidRoleOperationException : DomainException
+public sealed class WeakPasswordException : DomainException
 {
-    public InvalidRoleOperationException(string operation, string reason)
-        : base($"Invalid role operation '{operation}': {reason}", "INVALID_ROLE_OPERATION", 
-               new { Operation = operation, Reason = reason })
+    public WeakPasswordException() : base("Password does not meet strength requirements.")
     {
     }
 
-    public InvalidRoleOperationException(RoleId roleId, string operation, string reason)
-        : base($"Invalid role operation '{operation}' on role '{roleId}': {reason}", "INVALID_ROLE_OPERATION", 
-               new { RoleId = roleId.Value, Operation = operation, Reason = reason })
+    public WeakPasswordException(string details) : base($"Password does not meet strength requirements: {details}")
     {
     }
 }
 
 /// <summary>
-/// Exception thrown when password validation fails
+/// Exception thrown when attempting to assign an invalid role
 /// </summary>
-public sealed class InvalidPasswordException : DomainException
+public sealed class InvalidRoleException : DomainException
 {
-    public InvalidPasswordException(string reason)
-        : base($"Password is invalid: {reason}", "INVALID_PASSWORD", new { Reason = reason })
+    public RoleId RoleId { get; }
+
+    public InvalidRoleException(RoleId roleId) : base($"Role '{roleId}' is not valid or does not exist.")
     {
+        RoleId = roleId;
     }
 }
 
 /// <summary>
-/// Exception thrown when token operations fail
+/// Exception thrown when attempting unauthorized role operations
+/// </summary>
+public sealed class UnauthorizedRoleOperationException : DomainException
+{
+    public UserId UserId { get; }
+    public RoleId RoleId { get; }
+
+    public UnauthorizedRoleOperationException(UserId userId, RoleId roleId) 
+        : base($"User '{userId}' is not authorized to perform operations with role '{roleId}'.")
+    {
+        UserId = userId;
+        RoleId = roleId;
+    }
+}
+
+/// <summary>
+/// Exception thrown when email verification is required but not completed
+/// </summary>
+public sealed class EmailVerificationRequiredException : DomainException
+{
+    public UserId UserId { get; }
+
+    public EmailVerificationRequiredException(UserId userId) 
+        : base($"Email verification is required for user '{userId}' before this operation can be performed.")
+    {
+        UserId = userId;
+    }
+}
+
+/// <summary>
+/// Exception thrown when attempting to perform operations on a non-existent token
 /// </summary>
 public sealed class TokenOperationException : DomainException
 {
-    public TokenOperationException(string operation, string reason)
-        : base($"Token operation '{operation}' failed: {reason}", "TOKEN_OPERATION_FAILED", 
-               new { Operation = operation, Reason = reason })
+    public TokenId TokenId { get; }
+
+    public TokenOperationException(TokenId tokenId, string operation) 
+        : base($"Cannot perform '{operation}' operation on token '{tokenId}'.")
     {
+        TokenId = tokenId;
     }
-
-    public TokenOperationException(TokenId tokenId, string operation, string reason)
-        : base($"Token operation '{operation}' failed for token '{tokenId}': {reason}", "TOKEN_OPERATION_FAILED", 
-               new { TokenId = tokenId.Value, Operation = operation, Reason = reason })
-    {
-    }
-}
-
-/// <summary>
-/// Record representing authentication result with failure details
-/// </summary>
-internal sealed record AuthenticationResult(
-    bool IsSuccess,
-    UserId? UserId,
-    string? FailureReason,
-    int FailedAttempts,
-    DateTime? LockoutEnd
-)
-{
-    /// <summary>
-    /// Creates a successful authentication result
-    /// </summary>
-    public static AuthenticationResult Success(UserId userId) =>
-        new(true, userId, null, 0, null);
-
-    /// <summary>
-    /// Creates a failed authentication result
-    /// </summary>
-    public static AuthenticationResult Failure(string reason, int failedAttempts = 0, DateTime? lockoutEnd = null) =>
-        new(false, null, reason, failedAttempts, lockoutEnd);
-}
-
-/// <summary>
-/// Record representing token validation result
-/// </summary>
-internal sealed record TokenValidationResult(
-    bool IsValid,
-    TokenId? TokenId,
-    string? FailureReason
-)
-{
-    /// <summary>
-    /// Creates a successful validation result
-    /// </summary>
-    public static TokenValidationResult Success(TokenId tokenId) =>
-        new(true, tokenId, null);
-
-    /// <summary>
-    /// Creates a failed validation result
-    /// </summary>
-    public static TokenValidationResult Failure(string reason) =>
-        new(false, null, reason);
 } 

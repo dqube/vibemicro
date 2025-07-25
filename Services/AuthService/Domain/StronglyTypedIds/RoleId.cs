@@ -1,11 +1,14 @@
 using BuildingBlocks.Domain.StronglyTypedIds;
+using System.Text.Json.Serialization;
 
 namespace AuthService.Domain.StronglyTypedIds;
 
 /// <summary>
-/// Strongly-typed identifier for Role entity
+/// Strongly-typed identifier for Role entities
 /// </summary>
-internal readonly struct RoleId : IStronglyTypedId<int>, IEquatable<RoleId>
+[StronglyTypedId(typeof(int))]
+[JsonConverter(typeof(StronglyTypedIdJsonConverterFactory))]
+public readonly struct RoleId : IStronglyTypedId<int>, IEquatable<RoleId>
 {
     /// <summary>
     /// Gets the underlying integer value
@@ -18,35 +21,83 @@ internal readonly struct RoleId : IStronglyTypedId<int>, IEquatable<RoleId>
     /// <param name="value">The integer value</param>
     public RoleId(int value)
     {
-        if (value <= 0)
-            throw new ArgumentException("Role ID must be greater than zero", nameof(value));
         Value = value;
     }
 
     /// <summary>
-    /// Returns the string representation of the integer
+    /// Gets a zero identifier
     /// </summary>
-    public override string ToString() => Value.ToString();
+    public static RoleId Zero => new(0);
 
     /// <summary>
-    /// Determines whether this instance is equal to another
+    /// Checks if the identifier is zero
     /// </summary>
-    public bool Equals(RoleId other) => Value.Equals(other.Value);
+    public bool IsZero => Value == 0;
 
     /// <summary>
-    /// Determines whether this instance is equal to another IStronglyTypedId
+    /// Creates a new instance from the underlying value
     /// </summary>
-    public bool Equals(IStronglyTypedId<int>? other) => other is not null && Value.Equals(other.Value);
+    /// <param name="value">The integer value</param>
+    /// <returns>A new role identifier</returns>
+    public static RoleId From(int value) => new(value);
 
     /// <summary>
-    /// Determines whether this instance is equal to the specified object
+    /// Parses a string representation to create a new instance
     /// </summary>
+    /// <param name="value">The string representation of the integer</param>
+    /// <returns>A new role identifier</returns>
+    public static RoleId Parse(string value) => new(int.Parse(value));
+
+    /// <summary>
+    /// Tries to parse a string representation to create a new instance
+    /// </summary>
+    /// <param name="value">The string representation of the integer</param>
+    /// <param name="result">The parsed identifier, if successful</param>
+    /// <returns>True if parsing was successful</returns>
+    public static bool TryParse(string? value, out RoleId result)
+    {
+        if (int.TryParse(value, out var intValue))
+        {
+            result = new RoleId(intValue);
+            return true;
+        }
+
+        result = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether two identifiers are equal
+    /// </summary>
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(RoleId other) => Value == other.Value;
+
+    /// <summary>
+    /// Determines whether this identifier equals another object
+    /// </summary>
+    /// <param name="obj">The object to compare</param>
+    /// <returns>True if the objects are equal</returns>
     public override bool Equals(object? obj) => obj is RoleId other && Equals(other);
 
     /// <summary>
-    /// Gets the hash code for this instance
+    /// Gets the hash code for this identifier
     /// </summary>
+    /// <returns>The hash code</returns>
     public override int GetHashCode() => Value.GetHashCode();
+
+    /// <summary>
+    /// Returns the string representation of this identifier
+    /// </summary>
+    /// <returns>The string representation</returns>
+    public override string ToString() => Value.ToString();
+
+    /// <summary>
+    /// Determines whether this identifier equals another strongly-typed identifier
+    /// </summary>
+    /// <param name="other">The other identifier to compare</param>
+    /// <returns>True if the identifiers are equal</returns>
+    public bool Equals(IStronglyTypedId<int>? other) => other is not null && Value == other.Value;
 
     /// <summary>
     /// Equality operator
@@ -56,19 +107,23 @@ internal readonly struct RoleId : IStronglyTypedId<int>, IEquatable<RoleId>
     /// <summary>
     /// Inequality operator
     /// </summary>
-    public static bool operator !=(RoleId left, RoleId right) => !left.Equals(right);
+    public static bool operator !=(RoleId left, RoleId right) => !(left == right);
 
     /// <summary>
-    /// Implicit conversion from int to RoleId
+    /// Implicit conversion from integer to RoleId
     /// </summary>
-    /// <param name="value">The integer value</param>
-    /// <returns>A new RoleId instance</returns>
     public static implicit operator RoleId(int value) => new(value);
 
     /// <summary>
-    /// Implicit conversion from RoleId to int
+    /// Implicit conversion from RoleId to integer
     /// </summary>
-    /// <param name="roleId">The RoleId instance</param>
-    /// <returns>The underlying integer value</returns>
-    public static implicit operator int(RoleId roleId) => roleId.Value;
+    public static implicit operator int(RoleId id) => id.Value;
+
+    // Predefined role IDs based on the database seeding
+    public static readonly RoleId Cashier = new(1);
+    public static readonly RoleId Supervisor = new(2);
+    public static readonly RoleId Manager = new(3);
+    public static readonly RoleId Admin = new(4);
+    public static readonly RoleId Inventory = new(5);
+    public static readonly RoleId Reporting = new(6);
 } 

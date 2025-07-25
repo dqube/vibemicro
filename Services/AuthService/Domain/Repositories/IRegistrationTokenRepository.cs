@@ -1,17 +1,17 @@
+using BuildingBlocks.Domain.Repository;
 using AuthService.Domain.Entities;
 using AuthService.Domain.StronglyTypedIds;
 using AuthService.Domain.ValueObjects;
-using BuildingBlocks.Domain.Repository;
 
 namespace AuthService.Domain.Repositories;
 
 /// <summary>
-/// Repository interface for RegistrationToken entity
+/// Repository interface for RegistrationToken entities
 /// </summary>
-internal interface IRegistrationTokenRepository : IRepository<RegistrationToken, TokenId, Guid>
+public interface IRegistrationTokenRepository : IRepository<RegistrationToken, TokenId>
 {
     /// <summary>
-    /// Gets tokens by user ID
+    /// Gets all tokens for a specific user
     /// </summary>
     /// <param name="userId">The user identifier</param>
     /// <param name="cancellationToken">The cancellation token</param>
@@ -19,22 +19,36 @@ internal interface IRegistrationTokenRepository : IRepository<RegistrationToken,
     Task<IEnumerable<RegistrationToken>> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets active tokens for a user and token type
+    /// Gets tokens by type
     /// </summary>
-    /// <param name="userId">The user identifier</param>
     /// <param name="tokenType">The token type</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of active tokens</returns>
-    Task<IEnumerable<RegistrationToken>> GetActiveTokensAsync(UserId userId, TokenType tokenType, CancellationToken cancellationToken = default);
+    /// <returns>Collection of tokens of the specified type</returns>
+    Task<IEnumerable<RegistrationToken>> GetByTypeAsync(TokenType tokenType, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the most recent active token for a user and type
+    /// Gets all valid tokens for a user
     /// </summary>
     /// <param name="userId">The user identifier</param>
-    /// <param name="tokenType">The token type</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>The most recent active token if found</returns>
-    Task<RegistrationToken?> GetLatestActiveTokenAsync(UserId userId, TokenType tokenType, CancellationToken cancellationToken = default);
+    /// <returns>Collection of valid tokens for the user</returns>
+    Task<IEnumerable<RegistrationToken>> GetValidTokensByUserIdAsync(UserId userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a valid email verification token for a user
+    /// </summary>
+    /// <param name="userId">The user identifier</param>
+    /// <param name="cancellationToken">The cancellation token</param>
+    /// <returns>Valid email verification token if found, null otherwise</returns>
+    Task<RegistrationToken?> GetValidEmailVerificationTokenAsync(UserId userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a valid password reset token for a user
+    /// </summary>
+    /// <param name="userId">The user identifier</param>
+    /// <param name="cancellationToken">The cancellation token</param>
+    /// <returns>Valid password reset token if found, null otherwise</returns>
+    Task<RegistrationToken?> GetValidPasswordResetTokenAsync(UserId userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all expired tokens
@@ -51,66 +65,27 @@ internal interface IRegistrationTokenRepository : IRepository<RegistrationToken,
     Task<IEnumerable<RegistrationToken>> GetUsedTokensAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets tokens expiring within the specified timeframe
+    /// Gets tokens that are candidates for cleanup (old, used, or expired)
     /// </summary>
-    /// <param name="timeSpan">The timespan to check</param>
+    /// <param name="retentionPeriod">How long to retain tokens after they become inactive</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of tokens expiring soon</returns>
-    Task<IEnumerable<RegistrationToken>> GetTokensExpiringWithinAsync(TimeSpan timeSpan, CancellationToken cancellationToken = default);
+    /// <returns>Collection of tokens that can be cleaned up</returns>
+    Task<IEnumerable<RegistrationToken>> GetTokensForCleanupAsync(TimeSpan? retentionPeriod = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets tokens by type
+    /// Deletes expired tokens older than the specified retention period
     /// </summary>
-    /// <param name="tokenType">The token type</param>
+    /// <param name="retentionPeriod">How long to retain expired tokens</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of tokens of the specified type</returns>
-    Task<IEnumerable<RegistrationToken>> GetByTypeAsync(TokenType tokenType, CancellationToken cancellationToken = default);
+    /// <returns>Number of tokens deleted</returns>
+    Task<int> CleanupExpiredTokensAsync(TimeSpan? retentionPeriod = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets tokens created within a date range
+    /// Invalidates all tokens for a user (marks them as used)
     /// </summary>
-    /// <param name="startDate">Start date</param>
-    /// <param name="endDate">End date</param>
+    /// <param name="userId">The user identifier</param>
+    /// <param name="tokenType">Optional token type to filter by</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of tokens created within the date range</returns>
-    Task<IEnumerable<RegistrationToken>> GetTokensCreatedBetweenAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Validates and gets a token for use
-    /// </summary>
-    /// <param name="tokenId">The token identifier</param>
-    /// <param name="userId">The user identifier to validate against</param>
-    /// <param name="tokenType">The token type to validate against</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>The token if valid for use, null otherwise</returns>
-    Task<RegistrationToken?> GetValidTokenForUseAsync(TokenId tokenId, UserId userId, TokenType tokenType, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Cleanup expired and used tokens older than the specified date
-    /// </summary>
-    /// <param name="olderThan">The cutoff date</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>The number of tokens cleaned up</returns>
-    Task<int> CleanupOldTokensAsync(DateTime olderThan, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets token statistics
-    /// </summary>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Token statistics</returns>
-    Task<TokenStatistics> GetTokenStatisticsAsync(CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Record representing token statistics
-/// </summary>
-internal sealed record TokenStatistics(
-    int TotalTokens,
-    int ActiveTokens,
-    int ExpiredTokens,
-    int UsedTokens,
-    int EmailVerificationTokens,
-    int PasswordResetTokens,
-    DateTime? OldestActiveToken,
-    DateTime? NewestToken
-); 
+    /// <returns>Number of tokens invalidated</returns>
+    Task<int> InvalidateTokensForUserAsync(UserId userId, TokenType? tokenType = null, CancellationToken cancellationToken = default);
+} 

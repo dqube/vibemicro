@@ -3,51 +3,44 @@ using BuildingBlocks.Domain.ValueObjects;
 namespace AuthService.Domain.ValueObjects;
 
 /// <summary>
-/// Value object representing a password hash with salt
+/// Password hash value object containing both hash and salt
 /// </summary>
-internal sealed record PasswordHash(byte[] Hash, byte[] Salt) : ValueObject
+public sealed record PasswordHash : ValueObject
 {
     /// <summary>
-    /// Gets the password hash with validation
+    /// Gets the password hash bytes
     /// </summary>
-    public byte[] Hash { get; init; } = ValidateHash(Hash);
+    public byte[] Hash { get; }
 
     /// <summary>
-    /// Gets the password salt with validation
+    /// Gets the password salt bytes
     /// </summary>
-    public byte[] Salt { get; init; } = ValidateSalt(Salt);
+    public byte[] Salt { get; }
 
     /// <summary>
-    /// Validates the password hash
+    /// Initializes a new instance of the PasswordHash class
     /// </summary>
-    /// <param name="hash">The password hash</param>
-    /// <returns>The validated hash</returns>
-    private static byte[] ValidateHash(byte[] hash)
+    /// <param name="hash">The password hash bytes</param>
+    /// <param name="salt">The password salt bytes</param>
+    public PasswordHash(byte[] hash, byte[] salt)
     {
-        if (hash == null)
-            throw new ArgumentNullException(nameof(hash));
+        Hash = hash ?? throw new ArgumentNullException(nameof(hash));
+        Salt = salt ?? throw new ArgumentNullException(nameof(salt));
 
         if (hash.Length == 0)
-            throw new ArgumentException("Password hash cannot be empty", nameof(hash));
+            throw new ArgumentException("Password hash cannot be empty.", nameof(hash));
 
-        return hash;
+        if (salt.Length == 0)
+            throw new ArgumentException("Password salt cannot be empty.", nameof(salt));
     }
 
     /// <summary>
-    /// Validates the password salt
+    /// Creates a new password hash from raw bytes
     /// </summary>
-    /// <param name="salt">The password salt</param>
-    /// <returns>The validated salt</returns>
-    private static byte[] ValidateSalt(byte[] salt)
-    {
-        if (salt == null)
-            throw new ArgumentNullException(nameof(salt));
-
-        if (salt.Length == 0)
-            throw new ArgumentException("Password salt cannot be empty", nameof(salt));
-
-        return salt;
-    }
+    /// <param name="hash">The password hash bytes</param>
+    /// <param name="salt">The password salt bytes</param>
+    /// <returns>A new PasswordHash instance</returns>
+    public static PasswordHash From(byte[] hash, byte[] salt) => new(hash, salt);
 
     /// <summary>
     /// Creates a new password hash from base64 encoded strings
@@ -58,10 +51,10 @@ internal sealed record PasswordHash(byte[] Hash, byte[] Salt) : ValueObject
     public static PasswordHash FromBase64(string hashBase64, string saltBase64)
     {
         if (string.IsNullOrWhiteSpace(hashBase64))
-            throw new ArgumentException("Hash base64 string cannot be null or empty", nameof(hashBase64));
+            throw new ArgumentException("Hash base64 string cannot be null or empty.", nameof(hashBase64));
 
         if (string.IsNullOrWhiteSpace(saltBase64))
-            throw new ArgumentException("Salt base64 string cannot be null or empty", nameof(saltBase64));
+            throw new ArgumentException("Salt base64 string cannot be null or empty.", nameof(saltBase64));
 
         try
         {
@@ -71,67 +64,64 @@ internal sealed record PasswordHash(byte[] Hash, byte[] Salt) : ValueObject
         }
         catch (FormatException ex)
         {
-            throw new ArgumentException("Invalid base64 format", ex);
+            throw new ArgumentException("Invalid base64 format for password hash or salt.", ex);
         }
     }
 
     /// <summary>
     /// Gets the hash as a base64 encoded string
     /// </summary>
-    /// <returns>The base64 encoded hash</returns>
-    public string GetHashAsBase64() => Convert.ToBase64String(Hash);
+    /// <returns>Base64 encoded hash</returns>
+    public string GetHashBase64() => Convert.ToBase64String(Hash);
 
     /// <summary>
     /// Gets the salt as a base64 encoded string
     /// </summary>
-    /// <returns>The base64 encoded salt</returns>
-    public string GetSaltAsBase64() => Convert.ToBase64String(Salt);
+    /// <returns>Base64 encoded salt</returns>
+    public string GetSaltBase64() => Convert.ToBase64String(Salt);
 
     /// <summary>
-    /// Verifies if the provided password matches this hash
+    /// Verifies if a plain text password matches this hash
     /// </summary>
-    /// <param name="password">The password to verify</param>
-    /// <param name="hashProvider">The hash provider to use for verification</param>
+    /// <param name="password">The plain text password to verify</param>
     /// <returns>True if the password matches</returns>
-    public bool VerifyPassword(string password, IPasswordHashProvider hashProvider)
+    public bool VerifyPassword(string password)
     {
         if (string.IsNullOrEmpty(password))
             return false;
 
-        if (hashProvider == null)
-            throw new ArgumentNullException(nameof(hashProvider));
-
-        return hashProvider.VerifyPassword(password, Hash, Salt);
+        // This is a simplified example - in production, use proper password hashing
+        // like BCrypt, Argon2, or PBKDF2
+        using var hmac = new System.Security.Cryptography.HMACSHA512(Salt);
+        var computedHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+        return computedHash.SequenceEqual(Hash);
     }
 
     /// <summary>
-    /// Gets the atomic values that define the value object's equality
+    /// Creates a password hash from a plain text password
     /// </summary>
-    protected override IEnumerable<object?> GetEqualityComponents()
+    /// <param name="password">The plain text password</param>
+    /// <returns>A new PasswordHash instance</returns>
+    public static PasswordHash CreateHash(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+            throw new ArgumentException("Password cannot be null or empty.", nameof(password));
+
+        // Generate a random salt
+        using var hmac = new System.Security.Cryptography.HMACSHA512();
+        var salt = hmac.Key;
+        var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+
+        return new PasswordHash(hash, salt);
+    }
+
+    /// <summary>
+    /// Gets the equality components for value object comparison
+    /// </summary>
+    /// <returns>Enumerable of equality components</returns>
+    protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return Hash;
         yield return Salt;
     }
-}
-
-/// <summary>
-/// Interface for password hashing providers
-/// </summary>
-internal interface IPasswordHashProvider
-{
-    /// <summary>
-    /// Creates a password hash with salt
-    /// </summary>
-    /// <param name="password">The password to hash</param>
-    /// <returns>The password hash</returns>
-    PasswordHash CreateHash(string password);
-
-    /// <summary>
-    /// Verifies a password against a hash and salt
-    /// </summary>
-    /// <param name="password">The password to verify</param>
-    /// <param name="hash">The stored hash</param>
-    /// <param name="salt">The stored salt</param>
-    /// <returns>True if the password is valid</returns>
-    bool VerifyPassword(string password, byte[] hash, byte[] salt);
 } 

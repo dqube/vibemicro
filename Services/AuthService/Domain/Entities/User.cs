@@ -1,37 +1,35 @@
-using AuthService.Domain.DomainEvents;
+using BuildingBlocks.Domain.Entities;
 using AuthService.Domain.StronglyTypedIds;
 using AuthService.Domain.ValueObjects;
 using BuildingBlocks.Domain.Common;
-using BuildingBlocks.Domain.Entities;
-using BuildingBlocks.Domain.Extensions;
+using AuthService.Domain.DomainEvents;
 
 namespace AuthService.Domain.Entities;
 
 /// <summary>
-/// Represents a user in the authentication system
+/// User entity representing an authenticated user in the system
 /// </summary>
-public sealed class User : GuidAggregateRoot<UserId>, IAuditableEntity
+public class User : AggregateRoot<UserId>, IAuditableEntity
 {
-    private readonly List<Role> _roles = new();
-    private readonly List<RegistrationToken> _registrationTokens = new();
+    private readonly List<RoleId> _roleIds = new();
 
     /// <summary>
     /// Gets the username
     /// </summary>
-    public Username Username { get; private set; } = null!;
+    public Username Username { get; private set; }
 
     /// <summary>
     /// Gets the email address
     /// </summary>
-    public Email Email { get; private set; } = null!;
+    public Email Email { get; private set; }
 
     /// <summary>
     /// Gets the password hash
     /// </summary>
-    public PasswordHash PasswordHash { get; private set; } = null!;
+    public PasswordHash PasswordHash { get; private set; }
 
     /// <summary>
-    /// Gets whether the user account is active
+    /// Gets a value indicating whether the user is active
     /// </summary>
     public bool IsActive { get; private set; }
 
@@ -41,45 +39,43 @@ public sealed class User : GuidAggregateRoot<UserId>, IAuditableEntity
     public int FailedLoginAttempts { get; private set; }
 
     /// <summary>
-    /// Gets when the account lockout ends
+    /// Gets the lockout end time (null if not locked out)
     /// </summary>
     public DateTime? LockoutEnd { get; private set; }
 
     /// <summary>
-    /// Gets when the user was created
+    /// Gets the role IDs assigned to this user
     /// </summary>
-    public DateTime CreatedAt { get; set; }
+    public IReadOnlyList<RoleId> RoleIds => _roleIds.AsReadOnly();
 
     /// <summary>
-    /// Gets who created the user
+    /// Gets the creation timestamp
     /// </summary>
-    public string CreatedBy { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; private set; }
 
     /// <summary>
-    /// Gets when the user was last modified
+    /// Gets the user who created this entity
     /// </summary>
-    public DateTime? LastModifiedAt { get; set; }
+    public UserId? CreatedBy { get; private set; }
 
     /// <summary>
-    /// Gets who last modified the user
+    /// Gets the last update timestamp
     /// </summary>
-    public string? LastModifiedBy { get; set; }
+    public DateTime? UpdatedAt { get; private set; }
 
     /// <summary>
-    /// Gets the roles assigned to this user
+    /// Gets the user who last updated this entity
     /// </summary>
-    public IReadOnlyCollection<Role> Roles => _roles.AsReadOnly();
+    public UserId? UpdatedBy { get; private set; }
 
     /// <summary>
-    /// Gets the registration tokens for this user
+    /// Private constructor for Entity Framework
     /// </summary>
-    public IReadOnlyCollection<RegistrationToken> RegistrationTokens => _registrationTokens.AsReadOnly();
-
-    /// <summary>
-    /// Private constructor for ORM
-    /// </summary>
-    private User() : base()
+    private User() : base(UserId.Empty)
     {
+        Username = null!;
+        Email = null!;
+        PasswordHash = null!;
     }
 
     /// <summary>
@@ -89,106 +85,159 @@ public sealed class User : GuidAggregateRoot<UserId>, IAuditableEntity
     /// <param name="username">The username</param>
     /// <param name="email">The email address</param>
     /// <param name="passwordHash">The password hash</param>
-    /// <param name="createdBy">Who created the user</param>
-    public User(UserId id, Username username, Email email, PasswordHash passwordHash, string createdBy)
+    /// <param name="createdBy">The user who created this entity</param>
+    public User(UserId id, Username username, Email email, PasswordHash passwordHash, UserId? createdBy = null)
         : base(id)
     {
         Username = username ?? throw new ArgumentNullException(nameof(username));
         Email = email ?? throw new ArgumentNullException(nameof(email));
         PasswordHash = passwordHash ?? throw new ArgumentNullException(nameof(passwordHash));
-        CreatedBy = createdBy ?? throw new ArgumentNullException(nameof(createdBy));
-        CreatedAt = DateTime.UtcNow;
         IsActive = true;
         FailedLoginAttempts = 0;
+        LockoutEnd = null;
+        CreatedAt = DateTime.UtcNow;
+        CreatedBy = createdBy;
 
+        // Raise domain event
         AddDomainEvent(new UserCreatedDomainEvent(Id, Username, Email));
     }
 
     /// <summary>
-    /// Factory method to create a new user
+    /// Creates a new user
     /// </summary>
     /// <param name="username">The username</param>
     /// <param name="email">The email address</param>
-    /// <param name="passwordHash">The password hash</param>
-    /// <param name="createdBy">Who created the user</param>
-    /// <returns>A new user instance</returns>
-    public static User Create(Username username, Email email, PasswordHash passwordHash, string createdBy)
+    /// <param name="password">The plain text password</param>
+    /// <param name="createdBy">The user who created this entity</param>
+    /// <returns>A new User instance</returns>
+    public static User Create(Username username, Email email, string password, UserId? createdBy = null)
     {
-        var userId = UserId.New();
-        return new User(userId, username, email, passwordHash, createdBy);
+        var passwordHash = PasswordHash.CreateHash(password);
+        var user = new User(UserId.New(), username, email, passwordHash, createdBy);
+        return user;
     }
 
     /// <summary>
     /// Updates the user's email address
     /// </summary>
     /// <param name="email">The new email address</param>
-    /// <param name="modifiedBy">Who modified the user</param>
-    public void UpdateEmail(Email email, string modifiedBy)
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void UpdateEmail(Email email, UserId? updatedBy = null)
     {
-        if (email == null)
-            throw new ArgumentNullException(nameof(email));
+        if (Email.Equals(email))
+            return;
 
-        if (!Email.Equals(email))
-        {
-            var oldEmail = Email;
-            Email = email;
-            LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-            LastModifiedAt = DateTime.UtcNow;
-            MarkAsModified();
+        var oldEmail = Email;
+        Email = email ?? throw new ArgumentNullException(nameof(email));
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
 
-            AddDomainEvent(new UserEmailChangedDomainEvent(Id, oldEmail, Email));
-        }
+        AddDomainEvent(new UserEmailChangedDomainEvent(Id, oldEmail, Email));
     }
 
     /// <summary>
-    /// Updates the user's password
+    /// Changes the user's password
     /// </summary>
-    /// <param name="passwordHash">The new password hash</param>
-    /// <param name="modifiedBy">Who modified the user</param>
-    public void UpdatePassword(PasswordHash passwordHash, string modifiedBy)
+    /// <param name="currentPassword">The current password for verification</param>
+    /// <param name="newPassword">The new password</param>
+    /// <param name="updatedBy">The user who updated this entity</param>
+    /// <exception cref="InvalidOperationException">Thrown when the current password is incorrect</exception>
+    public void ChangePassword(string currentPassword, string newPassword, UserId? updatedBy = null)
     {
-        PasswordHash = passwordHash ?? throw new ArgumentNullException(nameof(passwordHash));
-        LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-        LastModifiedAt = DateTime.UtcNow;
-        FailedLoginAttempts = 0; // Reset failed attempts when password is changed
-        LockoutEnd = null; // Clear any lockout when password is changed
-        MarkAsModified();
+        if (!PasswordHash.VerifyPassword(currentPassword))
+            throw new InvalidOperationException("Current password is incorrect.");
+
+        PasswordHash = PasswordHash.CreateHash(newPassword);
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+
+        // Reset failed login attempts when password is changed
+        ResetFailedLoginAttempts(updatedBy);
 
         AddDomainEvent(new UserPasswordChangedDomainEvent(Id));
     }
 
     /// <summary>
+    /// Resets the user's password (admin operation)
+    /// </summary>
+    /// <param name="newPassword">The new password</param>
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void ResetPassword(string newPassword, UserId updatedBy)
+    {
+        PasswordHash = PasswordHash.CreateHash(newPassword);
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+
+        // Reset failed login attempts and unlock account
+        ResetFailedLoginAttempts(updatedBy);
+        Unlock(updatedBy);
+
+        AddDomainEvent(new UserPasswordResetDomainEvent(Id, updatedBy));
+    }
+
+    /// <summary>
     /// Activates the user account
     /// </summary>
-    /// <param name="modifiedBy">Who activated the user</param>
-    public void Activate(string modifiedBy)
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void Activate(UserId? updatedBy = null)
     {
-        if (!IsActive)
-        {
-            IsActive = true;
-            LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-            LastModifiedAt = DateTime.UtcNow;
-            MarkAsModified();
+        if (IsActive)
+            return;
 
-            AddDomainEvent(new UserActivatedDomainEvent(Id));
-        }
+        IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+
+        AddDomainEvent(new UserActivatedDomainEvent(Id));
     }
 
     /// <summary>
     /// Deactivates the user account
     /// </summary>
-    /// <param name="modifiedBy">Who deactivated the user</param>
-    public void Deactivate(string modifiedBy)
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void Deactivate(UserId? updatedBy = null)
     {
-        if (IsActive)
-        {
-            IsActive = false;
-            LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-            LastModifiedAt = DateTime.UtcNow;
-            MarkAsModified();
+        if (!IsActive)
+            return;
 
-            AddDomainEvent(new UserDeactivatedDomainEvent(Id));
-        }
+        IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+
+        AddDomainEvent(new UserDeactivatedDomainEvent(Id));
+    }
+
+    /// <summary>
+    /// Adds a role to the user
+    /// </summary>
+    /// <param name="roleId">The role identifier</param>
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void AddRole(RoleId roleId, UserId? updatedBy = null)
+    {
+        if (_roleIds.Contains(roleId))
+            return;
+
+        _roleIds.Add(roleId);
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+
+        AddDomainEvent(new UserRoleAddedDomainEvent(Id, roleId));
+    }
+
+    /// <summary>
+    /// Removes a role from the user
+    /// </summary>
+    /// <param name="roleId">The role identifier</param>
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void RemoveRole(RoleId roleId, UserId? updatedBy = null)
+    {
+        if (!_roleIds.Remove(roleId))
+            return;
+
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+
+        AddDomainEvent(new UserRoleRemovedDomainEvent(Id, roleId));
     }
 
     /// <summary>
@@ -199,155 +248,93 @@ public sealed class User : GuidAggregateRoot<UserId>, IAuditableEntity
     public void RecordFailedLoginAttempt(int maxAttempts = 5, TimeSpan? lockoutDuration = null)
     {
         FailedLoginAttempts++;
-        MarkAsModified();
+        UpdatedAt = DateTime.UtcNow;
 
         if (FailedLoginAttempts >= maxAttempts)
         {
             var duration = lockoutDuration ?? TimeSpan.FromMinutes(30);
             LockoutEnd = DateTime.UtcNow.Add(duration);
-            AddDomainEvent(new UserLockedOutDomainEvent(Id, LockoutEnd.Value));
+            
+            AddDomainEvent(new UserLockedOutDomainEvent(Id, FailedLoginAttempts, LockoutEnd.Value));
         }
     }
 
     /// <summary>
-    /// Records a successful login
+    /// Resets failed login attempts
     /// </summary>
-    public void RecordSuccessfulLogin()
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void ResetFailedLoginAttempts(UserId? updatedBy = null)
     {
+        if (FailedLoginAttempts == 0)
+            return;
+
         FailedLoginAttempts = 0;
-        LockoutEnd = null;
-        MarkAsModified();
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
     }
 
     /// <summary>
-    /// Checks if the user account is currently locked out
+    /// Unlocks the user account
     /// </summary>
-    /// <returns>True if the account is locked out</returns>
+    /// <param name="updatedBy">The user who updated this entity</param>
+    public void Unlock(UserId? updatedBy = null)
+    {
+        if (LockoutEnd == null)
+            return;
+
+        LockoutEnd = null;
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+
+        AddDomainEvent(new UserUnlockedDomainEvent(Id));
+    }
+
+    /// <summary>
+    /// Checks if the user is currently locked out
+    /// </summary>
+    /// <returns>True if the user is locked out</returns>
     public bool IsLockedOut()
     {
         return LockoutEnd.HasValue && LockoutEnd.Value > DateTime.UtcNow;
     }
 
     /// <summary>
-    /// Unlocks the user account
+    /// Verifies the user's password
     /// </summary>
-    /// <param name="modifiedBy">Who unlocked the user</param>
-    public void Unlock(string modifiedBy)
+    /// <param name="password">The password to verify</param>
+    /// <returns>True if the password is correct</returns>
+    public bool VerifyPassword(string password)
     {
-        if (IsLockedOut())
-        {
-            FailedLoginAttempts = 0;
-            LockoutEnd = null;
-            LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-            LastModifiedAt = DateTime.UtcNow;
-            MarkAsModified();
-
-            AddDomainEvent(new UserUnlockedDomainEvent(Id));
-        }
+        return PasswordHash.VerifyPassword(password);
     }
 
     /// <summary>
-    /// Adds a role to the user
+    /// Checks if the user has a specific role
     /// </summary>
-    /// <param name="role">The role to add</param>
-    /// <param name="modifiedBy">Who added the role</param>
-    public void AddRole(Role role, string modifiedBy)
-    {
-        if (role == null)
-            throw new ArgumentNullException(nameof(role));
-
-        if (!_roles.Contains(role))
-        {
-            _roles.Add(role);
-            role.AddUser(this);
-            LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-            LastModifiedAt = DateTime.UtcNow;
-            MarkAsModified();
-
-            AddDomainEvent(new UserRoleAssignedDomainEvent(Id, role.Id));
-        }
-    }
-
-    /// <summary>
-    /// Removes a role from the user
-    /// </summary>
-    /// <param name="role">The role to remove</param>
-    /// <param name="modifiedBy">Who removed the role</param>
-    public void RemoveRole(Role role, string modifiedBy)
-    {
-        if (role == null)
-            throw new ArgumentNullException(nameof(role));
-
-        if (_roles.Remove(role))
-        {
-            role.RemoveUser(this);
-            LastModifiedBy = modifiedBy ?? throw new ArgumentNullException(nameof(modifiedBy));
-            LastModifiedAt = DateTime.UtcNow;
-            MarkAsModified();
-
-            AddDomainEvent(new UserRoleRemovedDomainEvent(Id, role.Id));
-        }
-    }
-
-    /// <summary>
-    /// Checks if the user has the specified role
-    /// </summary>
-    /// <param name="role">The role to check</param>
+    /// <param name="roleId">The role identifier</param>
     /// <returns>True if the user has the role</returns>
-    public bool HasRole(Role role)
+    public bool HasRole(RoleId roleId)
     {
-        if (role == null)
-            return false;
-
-        return _roles.Contains(role);
+        return _roleIds.Contains(roleId);
     }
 
     /// <summary>
     /// Checks if the user has any of the specified roles
     /// </summary>
-    /// <param name="roles">The roles to check</param>
+    /// <param name="roleIds">The role identifiers</param>
     /// <returns>True if the user has any of the roles</returns>
-    public bool HasAnyRole(params Role[] roles)
+    public bool HasAnyRole(params RoleId[] roleIds)
     {
-        if (roles == null || roles.Length == 0)
-            return false;
-
-        return roles.Any(role => _roles.Contains(role));
+        return roleIds.Any(roleId => _roleIds.Contains(roleId));
     }
 
     /// <summary>
-    /// Adds a registration token to the user
+    /// Checks if the user has all of the specified roles
     /// </summary>
-    /// <param name="token">The token to add</param>
-    internal void AddRegistrationToken(RegistrationToken token)
+    /// <param name="roleIds">The role identifiers</param>
+    /// <returns>True if the user has all of the roles</returns>
+    public bool HasAllRoles(params RoleId[] roleIds)
     {
-        if (token == null)
-            throw new ArgumentNullException(nameof(token));
-
-        if (!_registrationTokens.Contains(token))
-        {
-            _registrationTokens.Add(token);
-            MarkAsModified();
-        }
-    }
-
-    /// <summary>
-    /// Gets active registration tokens of the specified type
-    /// </summary>
-    /// <param name="tokenType">The token type</param>
-    /// <returns>Active tokens of the specified type</returns>
-    public IEnumerable<RegistrationToken> GetActiveTokens(TokenType tokenType)
-    {
-        return _registrationTokens
-            .Where(t => t.TokenType.Equals(tokenType) && !t.IsExpired() && !t.IsUsed)
-            .OrderByDescending(t => t.CreatedAt);
-    }
-
-    /// <summary>
-    /// Returns the string representation of the user
-    /// </summary>
-    public override string ToString()
-    {
-        return $"User: {Username} ({Email}) - Active: {IsActive}";
+        return roleIds.All(roleId => _roleIds.Contains(roleId));
     }
 } 

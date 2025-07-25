@@ -1,211 +1,190 @@
-using AuthService.Domain.Entities;
-using AuthService.Domain.ValueObjects;
 using BuildingBlocks.Domain.BusinessRules;
-using BuildingBlocks.Domain.Common;
+using AuthService.Domain.ValueObjects;
+using AuthService.Domain.StronglyTypedIds;
 
 namespace AuthService.Domain.BusinessRules;
 
 /// <summary>
-/// Business rule to ensure username is unique
+/// Business rule ensuring username uniqueness
 /// </summary>
-public sealed class UsernameUniqueRule : BusinessRuleBase
+public sealed class UsernameMustBeUniqueRule : IBusinessRule
 {
     private readonly Username _username;
-    private readonly Func<Username, Task<bool>> _checkUniqueness;
+    private readonly Func<Username, Task<bool>> _isUsernameUnique;
 
-    public override string Message => $"Username '{_username}' is already taken";
-
-    public UsernameUniqueRule(Username username, Func<Username, Task<bool>> checkUniqueness)
+    public UsernameMustBeUniqueRule(Username username, Func<Username, Task<bool>> isUsernameUnique)
     {
-        _username = username ?? throw new ArgumentNullException(nameof(username));
-        _checkUniqueness = checkUniqueness ?? throw new ArgumentNullException(nameof(checkUniqueness));
+        _username = username;
+        _isUsernameUnique = isUsernameUnique;
     }
 
-    public override bool IsBroken()
+    public string Message => $"Username '{_username}' is already taken.";
+
+    public async Task<bool> IsBrokenAsync()
     {
-        // This is a simplified synchronous check - in real implementation,
-        // you'd use a domain service for async repository calls
-        return !_checkUniqueness(_username).GetAwaiter().GetResult();
+        return !await _isUsernameUnique(_username);
     }
 }
 
 /// <summary>
-/// Business rule to ensure email is unique
+/// Business rule ensuring email uniqueness
 /// </summary>
-public sealed class EmailUniqueRule : BusinessRuleBase
+public sealed class EmailMustBeUniqueRule : IBusinessRule
 {
-    private readonly Email _email;
-    private readonly Func<Email, Task<bool>> _checkUniqueness;
+    private readonly string _email;
+    private readonly UserId? _excludeUserId;
+    private readonly Func<string, UserId?, Task<bool>> _isEmailUnique;
 
-    public override string Message => $"Email '{_email}' is already registered";
-
-    public EmailUniqueRule(Email email, Func<Email, Task<bool>> checkUniqueness)
+    public EmailMustBeUniqueRule(string email, Func<string, UserId?, Task<bool>> isEmailUnique, UserId? excludeUserId = null)
     {
-        _email = email ?? throw new ArgumentNullException(nameof(email));
-        _checkUniqueness = checkUniqueness ?? throw new ArgumentNullException(nameof(checkUniqueness));
+        _email = email;
+        _isEmailUnique = isEmailUnique;
+        _excludeUserId = excludeUserId;
     }
 
-    public override bool IsBroken()
+    public string Message => $"Email '{_email}' is already in use.";
+
+    public async Task<bool> IsBrokenAsync()
     {
-        return !_checkUniqueness(_email).GetAwaiter().GetResult();
-    }
-}
-
-/// <summary>
-/// Business rule to ensure user account is active
-/// </summary>
-public sealed class UserMustBeActiveRule : BusinessRuleBase
-{
-    private readonly User _user;
-
-    public override string Message => "User account is not active";
-
-    public UserMustBeActiveRule(User user)
-    {
-        _user = user ?? throw new ArgumentNullException(nameof(user));
-    }
-
-    public override bool IsBroken()
-    {
-        return !_user.IsActive;
+        return !await _isEmailUnique(_email, _excludeUserId);
     }
 }
 
 /// <summary>
-/// Business rule to ensure user account is not locked out
+/// Business rule ensuring password strength requirements
 /// </summary>
-public sealed class UserMustNotBeLockedOutRule : BusinessRuleBase
-{
-    private readonly User _user;
-
-    public override string Message => $"User account is locked out until {_user.LockoutEnd:yyyy-MM-dd HH:mm:ss}";
-
-    public UserMustNotBeLockedOutRule(User user)
-    {
-        _user = user ?? throw new ArgumentNullException(nameof(user));
-    }
-
-    public override bool IsBroken()
-    {
-        return _user.IsLockedOut();
-    }
-}
-
-/// <summary>
-/// Business rule to ensure password meets complexity requirements
-/// </summary>
-public sealed class PasswordComplexityRule : BusinessRuleBase
+public sealed class PasswordMustMeetStrengthRequirementsRule : BusinessRuleBase
 {
     private readonly string _password;
-    private readonly int _minLength;
-    private readonly bool _requireUppercase;
-    private readonly bool _requireLowercase;
-    private readonly bool _requireDigit;
-    private readonly bool _requireSpecialChar;
 
-    public override string Message => "Password does not meet complexity requirements";
-
-    public PasswordComplexityRule(
-        string password,
-        int minLength = 8,
-        bool requireUppercase = true,
-        bool requireLowercase = true,
-        bool requireDigit = true,
-        bool requireSpecialChar = true)
+    public PasswordMustMeetStrengthRequirementsRule(string password)
     {
-        _password = password ?? throw new ArgumentNullException(nameof(password));
-        _minLength = minLength;
-        _requireUppercase = requireUppercase;
-        _requireLowercase = requireLowercase;
-        _requireDigit = requireDigit;
-        _requireSpecialChar = requireSpecialChar;
+        _password = password;
     }
 
-    public override bool IsBroken()
+    public override string Message => "Password does not meet strength requirements.";
+
+    protected override bool CheckRule()
     {
-        if (_password.Length < _minLength)
-            return true;
+        if (string.IsNullOrWhiteSpace(_password))
+            return false;
 
-        if (_requireUppercase && !_password.Any(char.IsUpper))
-            return true;
+        // Minimum length requirement
+        if (_password.Length < 8)
+            return false;
 
-        if (_requireLowercase && !_password.Any(char.IsLower))
-            return true;
+        // Must contain at least one uppercase letter
+        if (!_password.Any(char.IsUpper))
+            return false;
 
-        if (_requireDigit && !_password.Any(char.IsDigit))
-            return true;
+        // Must contain at least one lowercase letter
+        if (!_password.Any(char.IsLower))
+            return false;
 
-        if (_requireSpecialChar && !_password.Any(c => !char.IsLetterOrDigit(c)))
-            return true;
+        // Must contain at least one digit
+        if (!_password.Any(char.IsDigit))
+            return false;
 
-        return false;
+        // Must contain at least one special character
+        var specialCharacters = "!@#$%^&*(),.?\":{}|<>";
+        if (!_password.Any(c => specialCharacters.Contains(c)))
+            return false;
+
+        return true;
     }
 }
 
 /// <summary>
-/// Business rule to ensure token is valid for the operation
+/// Business rule ensuring user can only be assigned valid roles
 /// </summary>
-public sealed class TokenValidForOperationRule : BusinessRuleBase
+public sealed class UserCanOnlyHaveValidRolesRule : BusinessRuleBase
 {
-    private readonly RegistrationToken _token;
-    private readonly TokenType _expectedType;
+    private readonly RoleId _roleId;
+    private readonly Func<RoleId, bool> _isValidRole;
 
-    public override string Message => "Token is not valid for this operation";
-
-    public TokenValidForOperationRule(RegistrationToken token, TokenType expectedType)
+    public UserCanOnlyHaveValidRolesRule(RoleId roleId, Func<RoleId, bool> isValidRole)
     {
-        _token = token ?? throw new ArgumentNullException(nameof(token));
-        _expectedType = expectedType ?? throw new ArgumentNullException(nameof(expectedType));
+        _roleId = roleId;
+        _isValidRole = isValidRole;
     }
 
-    public override bool IsBroken()
+    public override string Message => $"Role with ID '{_roleId}' is not valid or does not exist.";
+
+    protected override bool CheckRule()
     {
-        return !_token.IsValid() || !_token.TokenType.Equals(_expectedType);
+        return _isValidRole(_roleId);
     }
 }
 
 /// <summary>
-/// Business rule to ensure user can have the specified role assigned
+/// Business rule ensuring user cannot be locked out indefinitely without proper authority
 /// </summary>
-public sealed class UserCanHaveRoleRule : BusinessRuleBase
+public sealed class UserLockoutMustHaveReasonableTimeoutRule : BusinessRuleBase
 {
-    private readonly User _user;
-    private readonly Role _role;
+    private readonly TimeSpan _lockoutDuration;
+    private readonly TimeSpan _maxAllowedDuration;
 
-    public override string Message => $"User cannot be assigned role '{_role.Name}'";
-
-    public UserCanHaveRoleRule(User user, Role role)
+    public UserLockoutMustHaveReasonableTimeoutRule(TimeSpan lockoutDuration, TimeSpan? maxAllowedDuration = null)
     {
-        _user = user ?? throw new ArgumentNullException(nameof(user));
-        _role = role ?? throw new ArgumentNullException(nameof(role));
+        _lockoutDuration = lockoutDuration;
+        _maxAllowedDuration = maxAllowedDuration ?? TimeSpan.FromDays(30); // Default max 30 days
     }
 
-    public override bool IsBroken()
+    public override string Message => $"Lockout duration of {_lockoutDuration} exceeds maximum allowed duration of {_maxAllowedDuration}.";
+
+    protected override bool CheckRule()
     {
-        // Example business logic - you might have specific rules about role assignment
-        // For now, just check if user already has the role
-        return _user.HasRole(_role);
+        return _lockoutDuration <= _maxAllowedDuration;
     }
 }
 
 /// <summary>
-/// Business rule to ensure maximum number of failed login attempts
+/// Business rule ensuring token expiration is reasonable
 /// </summary>
-public sealed class MaxFailedLoginAttemptsRule : BusinessRuleBase
+public sealed class TokenExpirationMustBeReasonableRule : BusinessRuleBase
 {
-    private readonly User _user;
-    private readonly int _maxAttempts;
+    private readonly DateTime _expiration;
+    private readonly TokenType _tokenType;
+    private readonly TimeSpan _maxAllowedDuration;
 
-    public override string Message => $"Maximum number of failed login attempts ({_maxAttempts}) exceeded";
-
-    public MaxFailedLoginAttemptsRule(User user, int maxAttempts = 5)
+    public TokenExpirationMustBeReasonableRule(DateTime expiration, TokenType tokenType)
     {
-        _user = user ?? throw new ArgumentNullException(nameof(user));
-        _maxAttempts = maxAttempts;
+        _expiration = expiration;
+        _tokenType = tokenType;
+        
+        // Set different max durations based on token type
+        _maxAllowedDuration = tokenType.IsEmailVerification 
+            ? TimeSpan.FromDays(7)  // Email verification: max 7 days
+            : TimeSpan.FromHours(24); // Password reset: max 24 hours
     }
 
-    public override bool IsBroken()
+    public override string Message => $"Token expiration time exceeds maximum allowed duration for {_tokenType} tokens.";
+
+    protected override bool CheckRule()
     {
-        return _user.FailedLoginAttempts >= _maxAttempts;
+        var duration = _expiration - DateTime.UtcNow;
+        return duration <= _maxAllowedDuration;
+    }
+}
+
+/// <summary>
+/// Business rule ensuring active user cannot be assigned to critical operations
+/// </summary>
+public sealed class OnlyActiveUsersCanPerformCriticalOperationsRule : BusinessRuleBase
+{
+    private readonly bool _isUserActive;
+    private readonly bool _isUserLockedOut;
+
+    public OnlyActiveUsersCanPerformCriticalOperationsRule(bool isUserActive, bool isUserLockedOut)
+    {
+        _isUserActive = isUserActive;
+        _isUserLockedOut = isUserLockedOut;
+    }
+
+    public override string Message => "Only active, non-locked users can perform critical operations.";
+
+    protected override bool CheckRule()
+    {
+        return _isUserActive && !_isUserLockedOut;
     }
 } 

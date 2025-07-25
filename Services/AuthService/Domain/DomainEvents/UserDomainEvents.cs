@@ -1,173 +1,94 @@
+using BuildingBlocks.Domain.DomainEvents;
 using AuthService.Domain.StronglyTypedIds;
 using AuthService.Domain.ValueObjects;
 using BuildingBlocks.Domain.Common;
-using BuildingBlocks.Domain.DomainEvents;
 
 namespace AuthService.Domain.DomainEvents;
 
 /// <summary>
 /// Domain event raised when a user is created
 /// </summary>
+/// <param name="UserId">The user identifier</param>
+/// <param name="Username">The username</param>
+/// <param name="Email">The email address</param>
 public sealed record UserCreatedDomainEvent(
     UserId UserId,
     Username Username,
-    Email Email
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        Username = Username.Value,
-        Email = Email.Value,
-        Timestamp = OccurredOn
-    };
-}
+    Email Email) : DomainEventBase;
 
 /// <summary>
 /// Domain event raised when a user's email is changed
 /// </summary>
+/// <param name="UserId">The user identifier</param>
+/// <param name="OldEmail">The old email address</param>
+/// <param name="NewEmail">The new email address</param>
 public sealed record UserEmailChangedDomainEvent(
     UserId UserId,
     Email OldEmail,
-    Email NewEmail
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        OldEmail = OldEmail.Value,
-        NewEmail = NewEmail.Value,
-        Timestamp = OccurredOn
-    };
-}
+    Email NewEmail) : DomainEventBase;
 
 /// <summary>
 /// Domain event raised when a user's password is changed
 /// </summary>
+/// <param name="UserId">The user identifier</param>
 public sealed record UserPasswordChangedDomainEvent(
-    UserId UserId
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        Timestamp = OccurredOn
-    };
-}
+    UserId UserId) : DomainEventBase;
+
+/// <summary>
+/// Domain event raised when a user's password is reset by an admin
+/// </summary>
+/// <param name="UserId">The user identifier</param>
+/// <param name="ResetBy">The user who reset the password</param>
+public sealed record UserPasswordResetDomainEvent(
+    UserId UserId,
+    UserId ResetBy) : DomainEventBase;
 
 /// <summary>
 /// Domain event raised when a user account is activated
 /// </summary>
+/// <param name="UserId">The user identifier</param>
 public sealed record UserActivatedDomainEvent(
-    UserId UserId
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        Timestamp = OccurredOn
-    };
-}
+    UserId UserId) : DomainEventBase;
 
 /// <summary>
 /// Domain event raised when a user account is deactivated
 /// </summary>
+/// <param name="UserId">The user identifier</param>
 public sealed record UserDeactivatedDomainEvent(
-    UserId UserId
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        Timestamp = OccurredOn
-    };
-}
+    UserId UserId) : DomainEventBase;
 
 /// <summary>
-/// Domain event raised when a user account is locked out
+/// Domain event raised when a role is added to a user
 /// </summary>
-public sealed record UserLockedOutDomainEvent(
+/// <param name="UserId">The user identifier</param>
+/// <param name="RoleId">The role identifier</param>
+public sealed record UserRoleAddedDomainEvent(
     UserId UserId,
-    DateTime LockoutEnd
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        LockoutEnd,
-        Timestamp = OccurredOn
-    };
-}
-
-/// <summary>
-/// Domain event raised when a user account is unlocked
-/// </summary>
-public sealed record UserUnlockedDomainEvent(
-    UserId UserId
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        Timestamp = OccurredOn
-    };
-}
-
-/// <summary>
-/// Domain event raised when a role is assigned to a user
-/// </summary>
-public sealed record UserRoleAssignedDomainEvent(
-    UserId UserId,
-    RoleId RoleId
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        RoleId = RoleId.Value,
-        Timestamp = OccurredOn
-    };
-}
+    RoleId RoleId) : DomainEventBase;
 
 /// <summary>
 /// Domain event raised when a role is removed from a user
 /// </summary>
+/// <param name="UserId">The user identifier</param>
+/// <param name="RoleId">The role identifier</param>
 public sealed record UserRoleRemovedDomainEvent(
     UserId UserId,
-    RoleId RoleId
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        UserId = UserId.Value,
-        RoleId = RoleId.Value,
-        Timestamp = OccurredOn
-    };
-} 
+    RoleId RoleId) : DomainEventBase;
+
+/// <summary>
+/// Domain event raised when a user account is locked out
+/// </summary>
+/// <param name="UserId">The user identifier</param>
+/// <param name="FailedAttempts">The number of failed attempts</param>
+/// <param name="LockoutEnd">When the lockout ends</param>
+public sealed record UserLockedOutDomainEvent(
+    UserId UserId,
+    int FailedAttempts,
+    DateTime LockoutEnd) : DomainEventBase;
+
+/// <summary>
+/// Domain event raised when a user account is unlocked
+/// </summary>
+/// <param name="UserId">The user identifier</param>
+public sealed record UserUnlockedDomainEvent(
+    UserId UserId) : DomainEventBase; 

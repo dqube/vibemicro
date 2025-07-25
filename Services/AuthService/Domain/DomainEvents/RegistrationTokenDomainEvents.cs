@@ -5,85 +5,41 @@ using BuildingBlocks.Domain.DomainEvents;
 namespace AuthService.Domain.DomainEvents;
 
 /// <summary>
-/// Domain event raised when a registration token is created
+/// Domain event raised when an email verification token is created
 /// </summary>
-public sealed record RegistrationTokenCreatedDomainEvent(
+/// <param name="TokenId">The token identifier</param>
+/// <param name="UserId">The user identifier</param>
+/// <param name="Expiration">When the token expires</param>
+public sealed record EmailVerificationTokenCreatedDomainEvent(
     TokenId TokenId,
     UserId UserId,
-    TokenType TokenType
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        TokenId = TokenId.Value,
-        UserId = UserId.Value,
-        TokenType = TokenType.Name,
-        Timestamp = OccurredOn
-    };
-}
+    DateTime Expiration) : DomainEventBase;
 
 /// <summary>
-/// Domain event raised when a registration token is used
+/// Domain event raised when a password reset token is created
 /// </summary>
-public sealed record RegistrationTokenUsedDomainEvent(
+/// <param name="TokenId">The token identifier</param>
+/// <param name="UserId">The user identifier</param>
+/// <param name="Expiration">When the token expires</param>
+public sealed record PasswordResetTokenCreatedDomainEvent(
     TokenId TokenId,
     UserId UserId,
-    TokenType TokenType
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        TokenId = TokenId.Value,
-        UserId = UserId.Value,
-        TokenType = TokenType.Name,
-        Timestamp = OccurredOn
-    };
-}
+    DateTime Expiration) : DomainEventBase;
 
 /// <summary>
-/// Domain event raised when a registration token expiration is extended
+/// Domain event raised when an email verification token is used
 /// </summary>
-public sealed record RegistrationTokenExtendedDomainEvent(
+/// <param name="TokenId">The token identifier</param>
+/// <param name="UserId">The user identifier</param>
+public sealed record EmailVerificationTokenUsedDomainEvent(
     TokenId TokenId,
-    UserId UserId,
-    DateTime NewExpiration
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        TokenId = TokenId.Value,
-        UserId = UserId.Value,
-        NewExpiration,
-        Timestamp = OccurredOn
-    };
-}
+    UserId UserId) : DomainEventBase;
 
 /// <summary>
-/// Domain event raised when a registration token expires
+/// Domain event raised when a password reset token is used
 /// </summary>
-public sealed record RegistrationTokenExpiredDomainEvent(
+/// <param name="TokenId">The token identifier</param>
+/// <param name="UserId">The user identifier</param>
+public sealed record PasswordResetTokenUsedDomainEvent(
     TokenId TokenId,
-    UserId UserId,
-    TokenType TokenType
-) : DomainEventBase
-{
-    /// <summary>
-    /// Gets additional event data
-    /// </summary>
-    public object GetEventData() => new
-    {
-        TokenId = TokenId.Value,
-        UserId = UserId.Value,
-        TokenType = TokenType.Name,
-        Timestamp = OccurredOn
-    };
-} 
+    UserId UserId) : DomainEventBase; 

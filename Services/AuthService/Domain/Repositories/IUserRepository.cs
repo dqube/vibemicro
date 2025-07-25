@@ -1,15 +1,14 @@
+using BuildingBlocks.Domain.Repository;
 using AuthService.Domain.Entities;
 using AuthService.Domain.StronglyTypedIds;
 using AuthService.Domain.ValueObjects;
-using BuildingBlocks.Domain.Common;
-using BuildingBlocks.Domain.Repository;
 
 namespace AuthService.Domain.Repositories;
 
 /// <summary>
-/// Repository interface for User aggregate
+/// Repository interface for User entities
 /// </summary>
-internal interface IUserRepository : IRepository<User, UserId, Guid>
+public interface IUserRepository : IRepository<User, UserId>
 {
     /// <summary>
     /// Finds a user by username
@@ -25,25 +24,25 @@ internal interface IUserRepository : IRepository<User, UserId, Guid>
     /// <param name="email">The email address to search for</param>
     /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>The user if found, null otherwise</returns>
-    Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default);
+    Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Checks if a username is already taken
+    /// Checks if a username is unique
     /// </summary>
     /// <param name="username">The username to check</param>
-    /// <param name="excludeUserId">Optional user ID to exclude from the check</param>
+    /// <param name="excludeUserId">User ID to exclude from the check (for updates)</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>True if the username is available, false if taken</returns>
-    Task<bool> IsUsernameAvailableAsync(Username username, UserId? excludeUserId = null, CancellationToken cancellationToken = default);
+    /// <returns>True if the username is unique</returns>
+    Task<bool> IsUsernameUniqueAsync(Username username, UserId? excludeUserId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Checks if an email is already registered
+    /// Checks if an email is unique
     /// </summary>
-    /// <param name="email">The email to check</param>
-    /// <param name="excludeUserId">Optional user ID to exclude from the check</param>
+    /// <param name="email">The email address to check</param>
+    /// <param name="excludeUserId">User ID to exclude from the check (for updates)</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>True if the email is available, false if taken</returns>
-    Task<bool> IsEmailAvailableAsync(Email email, UserId? excludeUserId = null, CancellationToken cancellationToken = default);
+    /// <returns>True if the email is unique</returns>
+    Task<bool> IsEmailUniqueAsync(string email, UserId? excludeUserId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all active users
@@ -53,14 +52,7 @@ internal interface IUserRepository : IRepository<User, UserId, Guid>
     Task<IEnumerable<User>> GetActiveUsersAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all locked out users
-    /// </summary>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of locked out users</returns>
-    Task<IEnumerable<User>> GetLockedOutUsersAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets users by role
+    /// Gets all users with a specific role
     /// </summary>
     /// <param name="roleId">The role identifier</param>
     /// <param name="cancellationToken">The cancellation token</param>
@@ -68,54 +60,34 @@ internal interface IUserRepository : IRepository<User, UserId, Guid>
     Task<IEnumerable<User>> GetUsersByRoleAsync(RoleId roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets users with failed login attempts above the threshold
+    /// Gets all locked out users
     /// </summary>
-    /// <param name="minFailedAttempts">Minimum number of failed attempts</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of users with failed attempts</returns>
-    Task<IEnumerable<User>> GetUsersWithFailedAttemptsAsync(int minFailedAttempts = 1, CancellationToken cancellationToken = default);
+    /// <returns>Collection of locked out users</returns>
+    Task<IEnumerable<User>> GetLockedOutUsersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets users with excessive failed login attempts
+    /// </summary>
+    /// <param name="threshold">The failed attempts threshold</param>
+    /// <param name="cancellationToken">The cancellation token</param>
+    /// <returns>Collection of users with excessive failed attempts</returns>
+    Task<IEnumerable<User>> GetUsersWithExcessiveFailedAttemptsAsync(int threshold = 3, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches users by username or email
+    /// </summary>
+    /// <param name="searchTerm">The search term</param>
+    /// <param name="cancellationToken">The cancellation token</param>
+    /// <returns>Collection of matching users</returns>
+    Task<IEnumerable<User>> SearchUsersAsync(string searchTerm, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets users created within a date range
     /// </summary>
-    /// <param name="startDate">Start date</param>
-    /// <param name="endDate">End date</param>
+    /// <param name="startDate">The start date</param>
+    /// <param name="endDate">The end date</param>
     /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>Collection of users created within the date range</returns>
     Task<IEnumerable<User>> GetUsersCreatedBetweenAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Searches users by username pattern
-    /// </summary>
-    /// <param name="pattern">The search pattern</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of users matching the pattern</returns>
-    Task<IEnumerable<User>> SearchByUsernameAsync(string pattern, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets users by email domain
-    /// </summary>
-    /// <param name="domain">The email domain</param>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of users from the specified domain</returns>
-    Task<IEnumerable<User>> GetUsersByEmailDomainAsync(string domain, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets user statistics
-    /// </summary>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>User statistics</returns>
-    Task<UserStatistics> GetUserStatisticsAsync(CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Record representing user statistics
-/// </summary>
-internal sealed record UserStatistics(
-    int TotalUsers,
-    int ActiveUsers,
-    int InactiveUsers,
-    int LockedOutUsers,
-    int UsersWithFailedAttempts,
-    DateTime LastUserCreated
-); 
+} 

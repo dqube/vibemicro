@@ -1,31 +1,31 @@
+using BuildingBlocks.Domain.Specifications;
 using AuthService.Domain.Entities;
 using AuthService.Domain.StronglyTypedIds;
 using AuthService.Domain.ValueObjects;
-using BuildingBlocks.Domain.Specifications;
 using System.Linq.Expressions;
 
 namespace AuthService.Domain.Specifications;
 
 /// <summary>
-/// Specification to find tokens by user ID
+/// Specification for finding tokens by user ID
 /// </summary>
-public sealed class TokensByUserIdSpecification : Specification<RegistrationToken>
+public sealed class TokensByUserSpecification : Specification<RegistrationToken>
 {
     private readonly UserId _userId;
 
-    public TokensByUserIdSpecification(UserId userId)
+    public TokensByUserSpecification(UserId userId)
     {
-        _userId = userId ?? throw new ArgumentNullException(nameof(userId));
+        _userId = userId;
     }
 
     public override Expression<Func<RegistrationToken, bool>> ToExpression()
     {
-        return token => token.UserId.Equals(_userId);
+        return token => token.UserId == _userId;
     }
 }
 
 /// <summary>
-/// Specification to find tokens by type
+/// Specification for finding tokens by type
 /// </summary>
 public sealed class TokensByTypeSpecification : Specification<RegistrationToken>
 {
@@ -33,19 +33,19 @@ public sealed class TokensByTypeSpecification : Specification<RegistrationToken>
 
     public TokensByTypeSpecification(TokenType tokenType)
     {
-        _tokenType = tokenType ?? throw new ArgumentNullException(nameof(tokenType));
+        _tokenType = tokenType;
     }
 
     public override Expression<Func<RegistrationToken, bool>> ToExpression()
     {
-        return token => token.TokenType.Equals(_tokenType);
+        return token => token.TokenType == _tokenType;
     }
 }
 
 /// <summary>
-/// Specification to find active (valid) tokens
+/// Specification for finding valid (unused and not expired) tokens
 /// </summary>
-public sealed class ActiveTokensSpecification : Specification<RegistrationToken>
+public sealed class ValidTokensSpecification : Specification<RegistrationToken>
 {
     public override Expression<Func<RegistrationToken, bool>> ToExpression()
     {
@@ -55,7 +55,7 @@ public sealed class ActiveTokensSpecification : Specification<RegistrationToken>
 }
 
 /// <summary>
-/// Specification to find expired tokens
+/// Specification for finding expired tokens
 /// </summary>
 public sealed class ExpiredTokensSpecification : Specification<RegistrationToken>
 {
@@ -67,7 +67,7 @@ public sealed class ExpiredTokensSpecification : Specification<RegistrationToken
 }
 
 /// <summary>
-/// Specification to find used tokens
+/// Specification for finding used tokens
 /// </summary>
 public sealed class UsedTokensSpecification : Specification<RegistrationToken>
 {
@@ -78,26 +78,7 @@ public sealed class UsedTokensSpecification : Specification<RegistrationToken>
 }
 
 /// <summary>
-/// Specification to find tokens expiring within a specific timeframe
-/// </summary>
-public sealed class TokensExpiringWithinSpecification : Specification<RegistrationToken>
-{
-    private readonly TimeSpan _timeSpan;
-
-    public TokensExpiringWithinSpecification(TimeSpan timeSpan)
-    {
-        _timeSpan = timeSpan;
-    }
-
-    public override Expression<Func<RegistrationToken, bool>> ToExpression()
-    {
-        var cutoffTime = DateTime.UtcNow.Add(_timeSpan);
-        return token => !token.IsUsed && token.Expiration <= cutoffTime && token.Expiration > DateTime.UtcNow;
-    }
-}
-
-/// <summary>
-/// Specification to find tokens created between specific dates
+/// Specification for finding tokens created within a date range
 /// </summary>
 public sealed class TokensCreatedBetweenSpecification : Specification<RegistrationToken>
 {
@@ -106,9 +87,6 @@ public sealed class TokensCreatedBetweenSpecification : Specification<Registrati
 
     public TokensCreatedBetweenSpecification(DateTime startDate, DateTime endDate)
     {
-        if (startDate > endDate)
-            throw new ArgumentException("Start date must be before end date", nameof(startDate));
-
         _startDate = startDate;
         _endDate = endDate;
     }
@@ -120,25 +98,70 @@ public sealed class TokensCreatedBetweenSpecification : Specification<Registrati
 }
 
 /// <summary>
-/// Specification to find active tokens for a specific user and type
+/// Specification for finding valid email verification tokens for a specific user
 /// </summary>
-public sealed class ActiveTokensByUserAndTypeSpecification : Specification<RegistrationToken>
+public sealed class ValidEmailVerificationTokenForUserSpecification : Specification<RegistrationToken>
 {
     private readonly UserId _userId;
-    private readonly TokenType _tokenType;
 
-    public ActiveTokensByUserAndTypeSpecification(UserId userId, TokenType tokenType)
+    public ValidEmailVerificationTokenForUserSpecification(UserId userId)
     {
-        _userId = userId ?? throw new ArgumentNullException(nameof(userId));
-        _tokenType = tokenType ?? throw new ArgumentNullException(nameof(tokenType));
+        _userId = userId;
     }
 
     public override Expression<Func<RegistrationToken, bool>> ToExpression()
     {
         var now = DateTime.UtcNow;
-        return token => token.UserId.Equals(_userId) 
-                     && token.TokenType.Equals(_tokenType)
-                     && !token.IsUsed 
-                     && token.Expiration > now;
+        return token => 
+            token.UserId == _userId &&
+            token.TokenType == TokenType.EmailVerification &&
+            !token.IsUsed &&
+            token.Expiration > now;
+    }
+}
+
+/// <summary>
+/// Specification for finding valid password reset tokens for a specific user
+/// </summary>
+public sealed class ValidPasswordResetTokenForUserSpecification : Specification<RegistrationToken>
+{
+    private readonly UserId _userId;
+
+    public ValidPasswordResetTokenForUserSpecification(UserId userId)
+    {
+        _userId = userId;
+    }
+
+    public override Expression<Func<RegistrationToken, bool>> ToExpression()
+    {
+        var now = DateTime.UtcNow;
+        return token => 
+            token.UserId == _userId &&
+            token.TokenType == TokenType.PasswordReset &&
+            !token.IsUsed &&
+            token.Expiration > now;
+    }
+}
+
+/// <summary>
+/// Specification for finding tokens that need cleanup (old, used, or expired)
+/// </summary>
+public sealed class TokensForCleanupSpecification : Specification<RegistrationToken>
+{
+    private readonly DateTime _cutoffDate;
+
+    public TokensForCleanupSpecification(TimeSpan? retentionPeriod = null)
+    {
+        var retention = retentionPeriod ?? TimeSpan.FromDays(30);
+        _cutoffDate = DateTime.UtcNow.Subtract(retention);
+    }
+
+    public override Expression<Func<RegistrationToken, bool>> ToExpression()
+    {
+        var now = DateTime.UtcNow;
+        return token => 
+            token.IsUsed || 
+            token.Expiration <= now ||
+            token.CreatedAt <= _cutoffDate;
     }
 } 

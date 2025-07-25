@@ -1,89 +1,103 @@
 using BuildingBlocks.Domain.ValueObjects;
-using System.Text.RegularExpressions;
 
 namespace AuthService.Domain.ValueObjects;
 
 /// <summary>
-/// Value object representing a username
+/// Username value object with validation
 /// </summary>
-internal sealed record Username(string Value) : SingleValueObject<string>(Value)
+public sealed record Username : SingleValueObject<string>
 {
-    /// <summary>
-    /// Minimum length for a username
-    /// </summary>
     public const int MinLength = 3;
-
-    /// <summary>
-    /// Maximum length for a username
-    /// </summary>
     public const int MaxLength = 50;
 
-    private static readonly Regex UsernameRegex = new(
-        @"^[a-zA-Z0-9_.-]+$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    /// <summary>
+    /// Initializes a new instance of the Username class
+    /// </summary>
+    /// <param name="value">The username value</param>
+    public Username(string value) : base(ValidateAndFormat(value))
+    {
+    }
 
     /// <summary>
-    /// Validates and normalizes the username value
+    /// Creates a Username from a string value
     /// </summary>
-    /// <param name="value">The raw username value</param>
-    /// <returns>The normalized username</returns>
+    /// <param name="value">The username value</param>
+    /// <returns>A new Username instance</returns>
+    public static Username From(string value) => new(value);
+
+    /// <summary>
+    /// Tries to create a Username from a string value
+    /// </summary>
+    /// <param name="value">The username value</param>
+    /// <param name="username">The created username if successful</param>
+    /// <returns>True if the username was created successfully</returns>
+    public static bool TryFrom(string? value, out Username? username)
+    {
+        username = null;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        try
+        {
+            username = new Username(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Validates and formats the username value
+    /// </summary>
+    /// <param name="value">The username value to validate</param>
+    /// <returns>The validated and formatted username</returns>
     /// <exception cref="ArgumentException">Thrown when the username is invalid</exception>
-    protected static override string ValidateValue(string value)
+    private static string ValidateAndFormat(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Username cannot be null or empty", nameof(value));
+            throw new ArgumentException("Username cannot be null, empty, or whitespace.", nameof(value));
 
         var trimmed = value.Trim();
 
         if (trimmed.Length < MinLength)
-            throw new ArgumentException($"Username must be at least {MinLength} characters long", nameof(value));
+            throw new ArgumentException($"Username must be at least {MinLength} characters long.", nameof(value));
 
         if (trimmed.Length > MaxLength)
-            throw new ArgumentException($"Username cannot exceed {MaxLength} characters", nameof(value));
+            throw new ArgumentException($"Username cannot exceed {MaxLength} characters.", nameof(value));
 
-        if (!UsernameRegex.IsMatch(trimmed))
-            throw new ArgumentException("Username can only contain letters, numbers, underscores, dots, and hyphens", nameof(value));
+        // Username validation rules
+        if (!IsValidUsername(trimmed))
+            throw new ArgumentException("Username contains invalid characters. Only letters, numbers, underscores, and hyphens are allowed.", nameof(value));
 
-        return trimmed.ToLowerInvariant();
+        return trimmed.ToLowerInvariant(); // Normalize to lowercase
     }
 
     /// <summary>
-    /// Checks if the username starts with the specified prefix
+    /// Validates username format
     /// </summary>
-    /// <param name="prefix">The prefix to check</param>
-    /// <returns>True if the username starts with the prefix</returns>
-    public bool StartsWith(string prefix)
+    /// <param name="username">The username to validate</param>
+    /// <returns>True if the username format is valid</returns>
+    private static bool IsValidUsername(string username)
     {
-        if (string.IsNullOrWhiteSpace(prefix))
+        // Username can contain letters, numbers, underscores, and hyphens
+        // Must start with a letter or number
+        if (!char.IsLetterOrDigit(username[0]))
             return false;
 
-        return Value.StartsWith(prefix.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Checks if the username contains the specified substring
-    /// </summary>
-    /// <param name="substring">The substring to check</param>
-    /// <returns>True if the username contains the substring</returns>
-    public bool Contains(string substring)
-    {
-        if (string.IsNullOrWhiteSpace(substring))
-            return false;
-
-        return Value.Contains(substring.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase);
+        return username.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-');
     }
 
     /// <summary>
     /// Implicit conversion from string to Username
     /// </summary>
     /// <param name="value">The string value</param>
-    /// <returns>A new Username instance</returns>
     public static implicit operator Username(string value) => new(value);
 
     /// <summary>
     /// Implicit conversion from Username to string
     /// </summary>
     /// <param name="username">The Username instance</param>
-    /// <returns>The underlying string value</returns>
     public static implicit operator string(Username username) => username.Value;
 } 

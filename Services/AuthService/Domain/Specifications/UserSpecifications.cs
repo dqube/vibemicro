@@ -1,14 +1,13 @@
+using BuildingBlocks.Domain.Specifications;
 using AuthService.Domain.Entities;
 using AuthService.Domain.StronglyTypedIds;
 using AuthService.Domain.ValueObjects;
-using BuildingBlocks.Domain.Common;
-using BuildingBlocks.Domain.Specifications;
 using System.Linq.Expressions;
 
 namespace AuthService.Domain.Specifications;
 
 /// <summary>
-/// Specification to find users by username
+/// Specification for finding users by username
 /// </summary>
 public sealed class UserByUsernameSpecification : Specification<User>
 {
@@ -16,35 +15,35 @@ public sealed class UserByUsernameSpecification : Specification<User>
 
     public UserByUsernameSpecification(Username username)
     {
-        _username = username ?? throw new ArgumentNullException(nameof(username));
+        _username = username;
     }
 
     public override Expression<Func<User, bool>> ToExpression()
     {
-        return user => user.Username.Equals(_username);
+        return user => user.Username == _username;
     }
 }
 
 /// <summary>
-/// Specification to find users by email
+/// Specification for finding users by email
 /// </summary>
 public sealed class UserByEmailSpecification : Specification<User>
 {
-    private readonly Email _email;
+    private readonly string _email;
 
-    public UserByEmailSpecification(Email email)
+    public UserByEmailSpecification(string email)
     {
-        _email = email ?? throw new ArgumentNullException(nameof(email));
+        _email = email.ToLowerInvariant();
     }
 
     public override Expression<Func<User, bool>> ToExpression()
     {
-        return user => user.Email.Equals(_email);
+        return user => user.Email.Value.ToLower() == _email;
     }
 }
 
 /// <summary>
-/// Specification to find active users
+/// Specification for finding active users
 /// </summary>
 public sealed class ActiveUsersSpecification : Specification<User>
 {
@@ -55,7 +54,7 @@ public sealed class ActiveUsersSpecification : Specification<User>
 }
 
 /// <summary>
-/// Specification to find inactive users
+/// Specification for finding inactive users
 /// </summary>
 public sealed class InactiveUsersSpecification : Specification<User>
 {
@@ -66,7 +65,7 @@ public sealed class InactiveUsersSpecification : Specification<User>
 }
 
 /// <summary>
-/// Specification to find locked out users
+/// Specification for finding locked out users
 /// </summary>
 public sealed class LockedOutUsersSpecification : Specification<User>
 {
@@ -78,25 +77,25 @@ public sealed class LockedOutUsersSpecification : Specification<User>
 }
 
 /// <summary>
-/// Specification to find users with failed login attempts
+/// Specification for finding users with excessive failed login attempts
 /// </summary>
-public sealed class UsersWithFailedAttemptsSpecification : Specification<User>
+public sealed class UsersWithExcessiveFailedAttemptsSpecification : Specification<User>
 {
-    private readonly int _minFailedAttempts;
+    private readonly int _threshold;
 
-    public UsersWithFailedAttemptsSpecification(int minFailedAttempts = 1)
+    public UsersWithExcessiveFailedAttemptsSpecification(int threshold = 3)
     {
-        _minFailedAttempts = minFailedAttempts;
+        _threshold = threshold;
     }
 
     public override Expression<Func<User, bool>> ToExpression()
     {
-        return user => user.FailedLoginAttempts >= _minFailedAttempts;
+        return user => user.FailedLoginAttempts >= _threshold;
     }
 }
 
 /// <summary>
-/// Specification to find users by role
+/// Specification for finding users by role
 /// </summary>
 public sealed class UsersByRoleSpecification : Specification<User>
 {
@@ -104,17 +103,17 @@ public sealed class UsersByRoleSpecification : Specification<User>
 
     public UsersByRoleSpecification(RoleId roleId)
     {
-        _roleId = roleId ?? throw new ArgumentNullException(nameof(roleId));
+        _roleId = roleId;
     }
 
     public override Expression<Func<User, bool>> ToExpression()
     {
-        return user => user.Roles.Any(role => role.Id.Equals(_roleId));
+        return user => user.RoleIds.Contains(_roleId);
     }
 }
 
 /// <summary>
-/// Specification to find users created within a date range
+/// Specification for finding users created within a date range
 /// </summary>
 public sealed class UsersCreatedBetweenSpecification : Specification<User>
 {
@@ -123,9 +122,6 @@ public sealed class UsersCreatedBetweenSpecification : Specification<User>
 
     public UsersCreatedBetweenSpecification(DateTime startDate, DateTime endDate)
     {
-        if (startDate > endDate)
-            throw new ArgumentException("Start date must be before end date", nameof(startDate));
-
         _startDate = startDate;
         _endDate = endDate;
     }
@@ -137,41 +133,33 @@ public sealed class UsersCreatedBetweenSpecification : Specification<User>
 }
 
 /// <summary>
-/// Specification to find users with usernames matching a pattern
+/// Specification for finding users eligible for password reset (active and not locked out)
 /// </summary>
-public sealed class UsernameContainsSpecification : Specification<User>
+public sealed class UsersEligibleForPasswordResetSpecification : Specification<User>
 {
-    private readonly string _pattern;
-
-    public UsernameContainsSpecification(string pattern)
-    {
-        _pattern = !string.IsNullOrWhiteSpace(pattern) 
-            ? pattern.ToLowerInvariant() 
-            : throw new ArgumentException("Pattern cannot be null or empty", nameof(pattern));
-    }
-
     public override Expression<Func<User, bool>> ToExpression()
     {
-        return user => user.Username.Value.Contains(_pattern);
+        var now = DateTime.UtcNow;
+        return user => user.IsActive && (!user.LockoutEnd.HasValue || user.LockoutEnd.Value <= now);
     }
 }
 
 /// <summary>
-/// Specification to find users with emails from a specific domain
+/// Specification for searching users by username or email
 /// </summary>
-public sealed class UsersByEmailDomainSpecification : Specification<User>
+public sealed class UserSearchSpecification : Specification<User>
 {
-    private readonly string _domain;
+    private readonly string _searchTerm;
 
-    public UsersByEmailDomainSpecification(string domain)
+    public UserSearchSpecification(string searchTerm)
     {
-        _domain = !string.IsNullOrWhiteSpace(domain) 
-            ? domain.ToLowerInvariant() 
-            : throw new ArgumentException("Domain cannot be null or empty", nameof(domain));
+        _searchTerm = searchTerm.ToLowerInvariant();
     }
 
     public override Expression<Func<User, bool>> ToExpression()
     {
-        return user => user.Email.Domain.ToLower() == _domain;
+        return user => 
+            user.Username.Value.ToLower().Contains(_searchTerm) ||
+            user.Email.Value.ToLower().Contains(_searchTerm);
     }
 } 

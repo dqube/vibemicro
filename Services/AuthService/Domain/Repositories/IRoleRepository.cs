@@ -1,13 +1,13 @@
+using BuildingBlocks.Domain.Repository;
 using AuthService.Domain.Entities;
 using AuthService.Domain.StronglyTypedIds;
-using BuildingBlocks.Domain.Repository;
 
 namespace AuthService.Domain.Repositories;
 
 /// <summary>
-/// Repository interface for Role aggregate
+/// Repository interface for Role entities
 /// </summary>
-internal interface IRoleRepository : IRepository<Role, RoleId, int>
+public interface IRoleRepository : IReadOnlyRepository<Role, RoleId>
 {
     /// <summary>
     /// Finds a role by name
@@ -18,42 +18,35 @@ internal interface IRoleRepository : IRepository<Role, RoleId, int>
     Task<Role?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Checks if a role name is already taken
+    /// Gets all roles
     /// </summary>
-    /// <param name="name">The role name to check</param>
-    /// <param name="excludeRoleId">Optional role ID to exclude from the check</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>True if the name is available, false if taken</returns>
-    Task<bool> IsNameAvailableAsync(string name, RoleId? excludeRoleId = null, CancellationToken cancellationToken = default);
+    /// <returns>Collection of all roles</returns>
+    Task<IEnumerable<Role>> GetAllRolesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets roles that have users assigned
+    /// Gets multiple roles by their IDs
     /// </summary>
+    /// <param name="roleIds">The role identifiers</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of roles with users</returns>
-    Task<IEnumerable<Role>> GetRolesWithUsersAsync(CancellationToken cancellationToken = default);
+    /// <returns>Collection of found roles</returns>
+    Task<IEnumerable<Role>> GetRolesByIdsAsync(IEnumerable<RoleId> roleIds, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets roles that have no users assigned
+    /// Checks if a role exists
     /// </summary>
+    /// <param name="roleId">The role identifier</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of empty roles</returns>
-    Task<IEnumerable<Role>> GetEmptyRolesAsync(CancellationToken cancellationToken = default);
+    /// <returns>True if the role exists</returns>
+    Task<bool> ExistsAsync(RoleId roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets roles by user
+    /// Checks if multiple roles exist
     /// </summary>
-    /// <param name="userId">The user identifier</param>
+    /// <param name="roleIds">The role identifiers</param>
     /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Collection of roles assigned to the user</returns>
-    Task<IEnumerable<Role>> GetRolesByUserAsync(UserId userId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets role statistics
-    /// </summary>
-    /// <param name="cancellationToken">The cancellation token</param>
-    /// <returns>Role statistics</returns>
-    Task<RoleStatistics> GetRoleStatisticsAsync(CancellationToken cancellationToken = default);
+    /// <returns>Dictionary mapping role IDs to their existence status</returns>
+    Task<Dictionary<RoleId, bool>> ExistAsync(IEnumerable<RoleId> roleIds, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
