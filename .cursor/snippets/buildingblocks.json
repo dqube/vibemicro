@@ -1,0 +1,547 @@
+{
+  "Strongly Typed ID": {
+    "prefix": "bb-stid",
+    "body": [
+      "public readonly struct ${1:EntityName}Id : IStronglyTypedId<Guid>",
+      "{",
+      "    public Guid Value { get; }",
+      "    ",
+      "    public ${1:EntityName}Id(Guid value) => Value = value;",
+      "    ",
+      "    public static ${1:EntityName}Id New() => new(Guid.NewGuid());",
+      "    public static ${1:EntityName}Id Empty => new(Guid.Empty);",
+      "    ",
+      "    public static implicit operator Guid(${1:EntityName}Id id) => id.Value;",
+      "    public static explicit operator ${1:EntityName}Id(Guid value) => new(value);",
+      "    ",
+      "    public bool Equals(${1:EntityName}Id other) => Value.Equals(other.Value);",
+      "    public override bool Equals(object? obj) => obj is ${1:EntityName}Id other && Equals(other);",
+      "    public override int GetHashCode() => Value.GetHashCode();",
+      "    public override string ToString() => Value.ToString();",
+      "    ",
+      "    public static bool operator ==(${1:EntityName}Id left, ${1:EntityName}Id right) => left.Equals(right);",
+      "    public static bool operator !=(${1:EntityName}Id left, ${1:EntityName}Id right) => !left.Equals(right);",
+      "}"
+    ],
+    "description": "Generate a strongly-typed ID using BuildingBlocks pattern"
+  },
+  
+  "Domain Entity": {
+    "prefix": "bb-entity",
+    "body": [
+      "public class ${1:EntityName} : Entity<${1:EntityName}Id, Guid>",
+      "{",
+      "    public ${2:PropertyType} ${2:PropertyName} { get; private set; }",
+      "    ",
+      "    private ${1:EntityName}() { } // EF Core",
+      "    ",
+      "    public ${1:EntityName}(${1:EntityName}Id id, ${2:PropertyType} ${3:propertyName}) : base(id)",
+      "    {",
+      "        ${2:PropertyName} = ${3:propertyName} ?? throw new ArgumentNullException(nameof(${3:propertyName}));",
+      "        ",
+      "        // Add domain event",
+      "        AddDomainEvent(new ${1:EntityName}CreatedDomainEvent(Id, ${2:PropertyName}));",
+      "    }",
+      "    ",
+      "    public void Update${2:PropertyName}(${2:PropertyType} ${3:propertyName})",
+      "    {",
+      "        if (${2:PropertyName} == ${3:propertyName}) return;",
+      "        ",
+      "        ${2:PropertyName} = ${3:propertyName};",
+      "        AddDomainEvent(new ${1:EntityName}UpdatedDomainEvent(Id, ${2:PropertyName}));",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a domain entity using BuildingBlocks pattern"
+  },
+  
+  "Value Object": {
+    "prefix": "bb-valueobject",
+    "body": [
+      "public sealed record ${1:ValueObjectName}(${2:PropertyType} ${3:PropertyName}) : SingleValueObject<${2:PropertyType}>(${3:PropertyName})",
+      "{",
+      "    protected static override ${2:PropertyType} ValidateValue(${2:PropertyType} value)",
+      "    {",
+      "        if (${4:validation_condition})",
+      "            throw new ArgumentException(\"${5:validation_message}\", nameof(value));",
+      "        ",
+      "        return value;",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a value object using BuildingBlocks pattern"
+  },
+  
+  "Domain Event": {
+    "prefix": "bb-domainevent",
+    "body": [
+      "public sealed record ${1:EntityName}${2:Action}DomainEvent(",
+      "    ${1:EntityName}Id ${1:EntityName}Id",
+      ") : DomainEventBase(nameof(${1:EntityName}${2:Action}DomainEvent));"
+    ],
+    "description": "Generate a domain event using BuildingBlocks pattern"
+  },
+  
+  "Business Rule": {
+    "prefix": "bb-businessrule",
+    "body": [
+      "public sealed class ${1:RuleName}BusinessRule : BusinessRuleBase",
+      "{",
+      "    private readonly ${2:ParameterType} _${3:parameterName};",
+      "    ",
+      "    public ${1:RuleName}BusinessRule(${2:ParameterType} ${3:parameterName})",
+      "    {",
+      "        _${3:parameterName} = ${3:parameterName};",
+      "    }",
+      "    ",
+      "    public override string Message => \"${4:Rule violation message}\";",
+      "    public override string Code => \"${5:RULE_CODE}\";",
+      "    ",
+      "    public override bool IsBroken()",
+      "    {",
+      "        return ${6:rule_condition};",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a business rule using BuildingBlocks pattern"
+  },
+  
+  "Command": {
+    "prefix": "bb-command",
+    "body": [
+      "public sealed record ${1:Action}${2:EntityName}Command(",
+      "    ${3:ParameterType} ${4:ParameterName}",
+      ") : CommandBase<${5:ReturnType}>;"
+    ],
+    "description": "Generate a command using BuildingBlocks pattern"
+  },
+  
+  "Query": {
+    "prefix": "bb-query",
+    "body": [
+      "public sealed record ${1:Action}${2:EntityName}Query(",
+      "    ${3:ParameterType} ${4:ParameterName}",
+      ") : QueryBase<${5:ReturnType}>;"
+    ],
+    "description": "Generate a query using BuildingBlocks pattern"
+  },
+  
+  "Command Handler": {
+    "prefix": "bb-commandhandler",
+    "body": [
+      "public sealed class ${1:Action}${2:EntityName}CommandHandler : ICommandHandler<${1:Action}${2:EntityName}Command, ${3:ReturnType}>",
+      "{",
+      "    private readonly I${2:EntityName}Repository _repository;",
+      "    private readonly IUnitOfWork _unitOfWork;",
+      "    private readonly ILogger<${1:Action}${2:EntityName}CommandHandler> _logger;",
+      "    ",
+      "    public ${1:Action}${2:EntityName}CommandHandler(",
+      "        I${2:EntityName}Repository repository,",
+      "        IUnitOfWork unitOfWork,",
+      "        ILogger<${1:Action}${2:EntityName}CommandHandler> logger)",
+      "    {",
+      "        _repository = repository;",
+      "        _unitOfWork = unitOfWork;",
+      "        _logger = logger;",
+      "    }",
+      "    ",
+      "    public async Task<${3:ReturnType}> HandleAsync(${1:Action}${2:EntityName}Command command, CancellationToken cancellationToken)",
+      "    {",
+      "        _logger.LogInformation(\"Handling {CommandName} for {EntityName}\", nameof(${1:Action}${2:EntityName}Command), \"${2:EntityName}\");",
+      "        ",
+      "        ${4:// Implementation}",
+      "        ",
+      "        await _unitOfWork.SaveChangesAsync(cancellationToken);",
+      "        ",
+      "        return ${5:result};",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a command handler using BuildingBlocks pattern"
+  },
+  
+  "Void Command Handler": {
+    "prefix": "bb-voidcommandhandler",
+    "body": [
+      "public sealed class ${1:Action}${2:EntityName}CommandHandler : ICommandHandler<${1:Action}${2:EntityName}Command>",
+      "{",
+      "    private readonly I${2:EntityName}Repository _repository;",
+      "    private readonly IUnitOfWork _unitOfWork;",
+      "    private readonly ILogger<${1:Action}${2:EntityName}CommandHandler> _logger;",
+      "    ",
+      "    public ${1:Action}${2:EntityName}CommandHandler(",
+      "        I${2:EntityName}Repository repository,",
+      "        IUnitOfWork unitOfWork,",
+      "        ILogger<${1:Action}${2:EntityName}CommandHandler> logger)",
+      "    {",
+      "        _repository = repository;",
+      "        _unitOfWork = unitOfWork;",
+      "        _logger = logger;",
+      "    }",
+      "    ",
+      "    public async Task HandleAsync(${1:Action}${2:EntityName}Command command, CancellationToken cancellationToken)",
+      "    {",
+      "        _logger.LogInformation(\"Handling {CommandName} for {EntityName}\", nameof(${1:Action}${2:EntityName}Command), \"${2:EntityName}\");",
+      "        ",
+      "        ${3:// Implementation}",
+      "        ",
+      "        await _unitOfWork.SaveChangesAsync(cancellationToken);",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a void command handler using BuildingBlocks pattern"
+  },
+  
+  "Query Handler": {
+    "prefix": "bb-queryhandler",
+    "body": [
+      "public sealed class ${1:Action}${2:EntityName}QueryHandler : IQueryHandler<${1:Action}${2:EntityName}Query, ${3:ReturnType}>",
+      "{",
+      "    private readonly I${2:EntityName}Repository _repository;",
+      "    private readonly ILogger<${1:Action}${2:EntityName}QueryHandler> _logger;",
+      "    ",
+      "    public ${1:Action}${2:EntityName}QueryHandler(",
+      "        I${2:EntityName}Repository repository,",
+      "        ILogger<${1:Action}${2:EntityName}QueryHandler> logger)",
+      "    {",
+      "        _repository = repository;",
+      "        _logger = logger;",
+      "    }",
+      "    ",
+      "    public async Task<${3:ReturnType}> HandleAsync(${1:Action}${2:EntityName}Query query, CancellationToken cancellationToken)",
+      "    {",
+      "        _logger.LogInformation(\"Handling {QueryName} for {EntityName}\", nameof(${1:Action}${2:EntityName}Query), \"${2:EntityName}\");",
+      "        ",
+      "        ${4:// Implementation}",
+      "        ",
+      "        return ${5:result};",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a query handler using BuildingBlocks pattern"
+  },
+  
+  "Event Handler": {
+    "prefix": "bb-eventhandler",
+    "body": [
+      "public sealed class ${1:EventName}Handler : IEventHandler<${1:EventName}>",
+      "{",
+      "    private readonly ILogger<${1:EventName}Handler> _logger;",
+      "    ",
+      "    public ${1:EventName}Handler(ILogger<${1:EventName}Handler> logger)",
+      "    {",
+      "        _logger = logger;",
+      "    }",
+      "    ",
+      "    public async Task HandleAsync(${1:EventName} eventItem, CancellationToken cancellationToken)",
+      "    {",
+      "        _logger.LogInformation(\"Handling {EventName}\", nameof(${1:EventName}));",
+      "        ",
+      "        ${2:// Implementation}",
+      "        ",
+      "        await Task.CompletedTask;",
+      "    }",
+      "}"
+    ],
+    "description": "Generate an event handler using BuildingBlocks pattern"
+  },
+  
+  "Domain Service": {
+    "prefix": "bb-domainservice",
+    "body": [
+      "public interface I${1:EntityName}DomainService : IDomainService",
+      "{",
+      "    Task<bool> ${2:MethodName}Async(${3:ParameterType} ${4:parameterName}, CancellationToken cancellationToken = default);",
+      "}",
+      "",
+      "public class ${1:EntityName}DomainService : DomainServiceBase, I${1:EntityName}DomainService",
+      "{",
+      "    private readonly I${1:EntityName}Repository _repository;",
+      "    ",
+      "    public ${1:EntityName}DomainService(",
+      "        I${1:EntityName}Repository repository,",
+      "        ILogger<${1:EntityName}DomainService> logger) : base(logger)",
+      "    {",
+      "        _repository = repository;",
+      "    }",
+      "    ",
+      "    public async Task<bool> ${2:MethodName}Async(${3:ParameterType} ${4:parameterName}, CancellationToken cancellationToken = default)",
+      "    {",
+      "        Logger.LogInformation(\"Executing domain service method {MethodName}\", nameof(${2:MethodName}));",
+      "        ",
+      "        ${5:// Domain logic implementation}",
+      "        ",
+      "        return true;",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a domain service using BuildingBlocks pattern"
+  },
+  
+  "Factory": {
+    "prefix": "bb-factory",
+    "body": [
+      "public interface I${1:EntityName}Factory : IEntityFactory<${1:EntityName}, ${1:EntityName}Id, Guid>",
+      "{",
+      "    ${1:EntityName} Create${1:EntityName}(${2:ParameterType} ${3:parameterName});",
+      "    Task<${1:EntityName}> Create${1:EntityName}Async(${2:ParameterType} ${3:parameterName}, CancellationToken cancellationToken = default);",
+      "}",
+      "",
+      "public class ${1:EntityName}Factory : EntityFactoryBase<${1:EntityName}, ${1:EntityName}Id, Guid>, I${1:EntityName}Factory",
+      "{",
+      "    public ${1:EntityName}Factory(ILogger<${1:EntityName}Factory> logger) : base(logger)",
+      "    {",
+      "    }",
+      "    ",
+      "    public ${1:EntityName} Create${1:EntityName}(${2:ParameterType} ${3:parameterName})",
+      "    {",
+      "        Logger.LogInformation(\"Creating {EntityName} with {ParameterName}: {ParameterValue}\",",
+      "            nameof(${1:EntityName}), nameof(${3:parameterName}), ${3:parameterName});",
+      "        ",
+      "        var id = ${1:EntityName}Id.New();",
+      "        return new ${1:EntityName}(id, ${3:parameterName});",
+      "    }",
+      "    ",
+      "    public async Task<${1:EntityName}> Create${1:EntityName}Async(${2:ParameterType} ${3:parameterName}, CancellationToken cancellationToken = default)",
+      "    {",
+      "        return await Task.FromResult(Create${1:EntityName}(${3:parameterName}));",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a factory using BuildingBlocks pattern"
+  },
+  
+  "Policy": {
+    "prefix": "bb-policy",
+    "body": [
+      "public interface I${1:PolicyName}Policy : IPolicy<${2:InputType}, ${3:OutputType}>",
+      "{",
+      "    ${3:OutputType} Apply(${2:InputType} input);",
+      "}",
+      "",
+      "public class ${1:PolicyName}Policy : PolicyBase<${2:InputType}, ${3:OutputType}>, I${1:PolicyName}Policy",
+      "{",
+      "    public ${1:PolicyName}Policy(ILogger<${1:PolicyName}Policy> logger) : base(logger)",
+      "    {",
+      "    }",
+      "    ",
+      "    public override ${3:OutputType} Apply(${2:InputType} input)",
+      "    {",
+      "        Guard.NotNull(input, nameof(input));",
+      "        ",
+      "        Logger.LogInformation(\"Applying {PolicyName} policy\", nameof(${1:PolicyName}Policy));",
+      "        ",
+      "        ${4:// Policy implementation}",
+      "        ",
+      "        return default(${3:OutputType});",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a policy using BuildingBlocks pattern"
+  },
+  
+  "Guard Clause": {
+    "prefix": "bb-guard",
+    "body": [
+      "Guard.NotNull(${1:parameter}, nameof(${1:parameter}));"
+    ],
+    "description": "Generate a guard clause using BuildingBlocks pattern"
+  },
+  
+  "Guard NotNullOrEmpty": {
+    "prefix": "bb-guard-string",
+    "body": [
+      "Guard.NotNullOrEmpty(${1:parameter}, nameof(${1:parameter}));"
+    ],
+    "description": "Generate a string guard clause using BuildingBlocks pattern"
+  },
+  
+  "Extended Value Object": {
+    "prefix": "bb-extendedvalueobject",
+    "body": [
+      "public sealed record ${1:ValueObjectName}(${2:PropertyType} ${3:PropertyName}) : SingleValueObject<${2:PropertyType}>(${3:PropertyName})",
+      "{",
+      "    protected static override ${2:PropertyType} ValidateValue(${2:PropertyType} value)",
+      "    {",
+      "        Guard.NotNull(value, nameof(value));",
+      "        ",
+      "        if (${4:validation_condition})",
+      "            throw new ValueObjectException($\"Invalid ${1:ValueObjectName}: {value}\");",
+      "        ",
+      "        return value;",
+      "    }",
+      "    ",
+      "    public ${5:AdditionalMethod}()",
+      "    {",
+      "        ${6:// Additional business logic}",
+      "    }",
+      "}"
+    ],
+    "description": "Generate an extended value object with validation using BuildingBlocks pattern"
+  },
+  
+  "Invariant": {
+    "prefix": "bb-invariant",
+    "body": [
+      "public sealed class ${1:InvariantName}Invariant : InvariantBase",
+      "{",
+      "    private readonly ${2:ParameterType} _${3:parameterName};",
+      "    ",
+      "    public ${1:InvariantName}Invariant(${2:ParameterType} ${3:parameterName})",
+      "    {",
+      "        _${3:parameterName} = Guard.NotNull(${3:parameterName}, nameof(${3:parameterName}));",
+      "    }",
+      "    ",
+      "    public override string Message => \"${4:Invariant violation message}\";",
+      "    public override string Code => \"${5:INVARIANT_CODE}\";",
+      "    ",
+      "    public override bool IsViolated()",
+      "    {",
+      "        return ${6:invariant_condition};",
+      "    }",
+      "}"
+    ],
+    "description": "Generate an invariant using BuildingBlocks pattern"
+  },
+  
+  "Domain Validator": {
+    "prefix": "bb-domainvalidator",
+    "body": [
+      "public class ${1:EntityName}Validator : DomainValidatorBase<${1:EntityName}>",
+      "{",
+      "    public ${1:EntityName}Validator(ILogger<${1:EntityName}Validator> logger) : base(logger)",
+      "    {",
+      "    }",
+      "    ",
+      "    protected override ValidationResult ValidateCore(${1:EntityName} entity)",
+      "    {",
+      "        var result = new ValidationResult();",
+      "        ",
+      "        // Validate entity properties",
+      "        if (${2:validation_condition})",
+      "        {",
+      "            result.AddError(\"${3:PropertyName}\", \"${4:Error message}\");",
+      "        }",
+      "        ",
+      "        return result;",
+      "    }",
+      "}"
+    ],
+    "description": "Generate a domain validator using BuildingBlocks pattern"
+  },
+  
+  "Repository Interface": {
+    "prefix": "bb-repository-interface",
+    "body": [
+      "public interface I${1:EntityName}Repository : IRepository<${1:EntityName}, ${1:EntityName}Id>",
+      "{",
+      "    Task<${1:EntityName}?> GetBy${2:PropertyName}Async(${3:PropertyType} ${4:propertyName}, CancellationToken cancellationToken = default);",
+      "    Task<bool> ExistsBy${2:PropertyName}Async(${3:PropertyType} ${4:propertyName}, CancellationToken cancellationToken = default);",
+      "    Task<PagedResult<${1:EntityName}>> GetPagedAsync(PagedQuery query, CancellationToken cancellationToken = default);",
+      "}"
+    ],
+    "description": "Generate a repository interface using BuildingBlocks pattern"
+  },
+  
+  "API Controller": {
+    "prefix": "bb-controller",
+    "body": [
+      "[ApiController]",
+      "[Route(\"api/v{version:apiVersion}/[controller]\")]",
+      "[ApiVersion(\"1.0\")]",
+      "public class ${1:EntityName}Controller : EndpointBase",
+      "{",
+      "    public ${1:EntityName}Controller(IMediator mediator, ILogger<${1:EntityName}Controller> logger)",
+      "        : base(mediator, logger)",
+      "    {",
+      "    }",
+      "    ",
+      "    [HttpGet]",
+      "    [ProducesResponseType(typeof(ApiResponse<PagedResult<${1:EntityName}Dto>>), 200)]",
+      "    public async Task<IResult> Get${1:EntityName}s([FromQuery] Get${1:EntityName}sQuery query)",
+      "    {",
+      "        var result = await Mediator.QueryAsync<Get${1:EntityName}sQuery, PagedResult<${1:EntityName}Dto>>(query);",
+      "        return await OkAsync(Task.FromResult(result));",
+      "    }",
+      "    ",
+      "    [HttpGet(\"{id:guid}\")]",
+      "    [ProducesResponseType(typeof(ApiResponse<${1:EntityName}Dto>), 200)]",
+      "    [ProducesResponseType(404)]",
+      "    public async Task<IResult> Get${1:EntityName}(Guid id)",
+      "    {",
+      "        var query = new Get${1:EntityName}Query(new ${1:EntityName}Id(id));",
+      "        var result = await Mediator.QueryAsync<Get${1:EntityName}Query, ${1:EntityName}Dto>(query);",
+      "        return await OkAsync(Task.FromResult(result));",
+      "    }",
+      "    ",
+      "    [HttpPost]",
+      "    [ProducesResponseType(typeof(ApiResponse<${1:EntityName}Dto>), 201)]",
+      "    [ProducesResponseType(typeof(ValidationResponse), 400)]",
+      "    public async Task<IResult> Create${1:EntityName}([FromBody] Create${1:EntityName}Command command)",
+      "    {",
+      "        var result = await Mediator.SendAsync<Create${1:EntityName}Command, ${1:EntityName}Dto>(command);",
+      "        return await CreatedAsync(Task.FromResult(result), $\"/api/v1/${2:entityname}s/{result.Id}\");",
+      "    }",
+      "}"
+    ],
+    "description": "Generate an API controller using BuildingBlocks pattern"
+  },
+  
+  "Minimal API Endpoints": {
+    "prefix": "bb-minimalapi",
+    "body": [
+      "public static class ${1:EntityName}Endpoints",
+      "{",
+      "    public static void Map${1:EntityName}Endpoints(this IEndpointRouteBuilder app)",
+      "    {",
+      "        var group = app.MapGroup(\"/api/v1/${2:entityname}s\")",
+      "                      .WithTags(\"${1:EntityName}s\")",
+      "                      .WithOpenApi();",
+      "        ",
+      "        group.MapGet(\"/\", Get${1:EntityName}s)",
+      "             .WithName(\"Get${1:EntityName}s\")",
+      "             .WithSummary(\"Get all ${2:entityname}s\")",
+      "             .Produces<ApiResponse<PagedResult<${1:EntityName}Dto>>>();",
+      "        ",
+      "        group.MapGet(\"/{id:guid}\", Get${1:EntityName})",
+      "             .WithName(\"Get${1:EntityName}\")",
+      "             .WithSummary(\"Get ${2:entityname} by ID\")",
+      "             .Produces<ApiResponse<${1:EntityName}Dto>>()",
+      "             .Produces(404);",
+      "        ",
+      "        group.MapPost(\"/\", Create${1:EntityName})",
+      "             .WithName(\"Create${1:EntityName}\")",
+      "             .WithSummary(\"Create new ${2:entityname}\")",
+      "             .Produces<ApiResponse<${1:EntityName}Dto>>(201)",
+      "             .Produces<ValidationResponse>(400);",
+      "    }",
+      "    ",
+      "    private static async Task<IResult> Get${1:EntityName}s(",
+      "        [AsParameters] Get${1:EntityName}sQuery query,",
+      "        IMediator mediator)",
+      "    {",
+      "        var result = await mediator.QueryAsync<Get${1:EntityName}sQuery, PagedResult<${1:EntityName}Dto>>(query);",
+      "        return Results.Ok(ApiResponse<PagedResult<${1:EntityName}Dto>>.Success(result));",
+      "    }",
+      "    ",
+      "    private static async Task<IResult> Get${1:EntityName}(",
+      "        Guid id,",
+      "        IMediator mediator)",
+      "    {",
+      "        var query = new Get${1:EntityName}Query(new ${1:EntityName}Id(id));",
+      "        var result = await mediator.QueryAsync<Get${1:EntityName}Query, ${1:EntityName}Dto>(query);",
+      "        return Results.Ok(ApiResponse<${1:EntityName}Dto>.Success(result));",
+      "    }",
+      "    ",
+      "    private static async Task<IResult> Create${1:EntityName}(",
+      "        Create${1:EntityName}Command command,",
+      "        IMediator mediator)",
+      "    {",
+      "        var result = await mediator.SendAsync<Create${1:EntityName}Command, ${1:EntityName}Dto>(command);",
+      "        return Results.Created($\"/api/v1/${2:entityname}s/{result.Id}\", ApiResponse<${1:EntityName}Dto>.Success(result));",
+      "    }",
+      "}"
+    ],
+    "description": "Generate minimal API endpoints using BuildingBlocks pattern"
+  }
+} 
